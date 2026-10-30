@@ -173,9 +173,10 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 The suite covers detection, pairing-safe planning, fold transactions, ladder behaviour, lane
 refusal memory, per-turn budgets and measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
-result; it is skipped unless `DSH_SESSION_LOG` is set. Measured folds on real logs from this
-machine: `956 → 169` nodes (991,512 → 298,595 tokens), `2232 → 507` (933,308 → 241,381),
-`482 → 183`, `382 → 165`.
+result; it is skipped unless `DSH_SESSION_LOG` is set. Driving the whole ladder against real
+logs from this machine rescues every oversized session with zero model calls: 1,087,491 →
+51,257 tokens, 991,512 → 94,082, 933,308 → 50,890, 497,020 → 51,538, 200,442 → 48,959,
+against a 196,608-token window (14 sessions; `docs/PLAN.md` §5).
 
 `mount-check` is the integration gate: it loads the plugin into the **installed app's** cordis
 4 container, so it exercises the real `inject`/`Service` wiring and the real

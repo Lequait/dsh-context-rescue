@@ -23,6 +23,8 @@ import { measure } from '../lib/measure.js';
 import { applyFold } from '../lib/fold.js';
 import { hasOpenCompactionTransaction, pairingCuts, planFold } from '../lib/plan.js';
 import { resolveConfig } from '../lib/config.js';
+import { rescue } from '../lib/rescue.js';
+import { fits } from '../lib/measure.js';
 import { fakeMeter } from './fake-session.js';
 
 /** Expand `~` so the env var can be written the way a shell user expects. */
@@ -87,10 +89,14 @@ class ReplaySession {
   }
 }
 
-test('a real session log folds at a balanced cut without corrupting the surface', { skip }, () => {
+test('a real session log folds at a balanced cut without corrupting the surface', { skip }, (t) => {
   const { header, events } = loadSessionLog(resolved);
   const { surface } = reconstructSurface(events);
-  assert.ok(surface.length > 20, `expected a long surface, got ${surface.length}`);
+  // An aborted or brand-new session records no messages at all; there is nothing to replay.
+  if (surface.length <= 20) {
+    t.skip(`log has only ${surface.length} surface nodes; nothing to fold`);
+    return;
+  }
   process.stdout.write(`[replay] ${header?.id ?? '?'}: ${events.length} events, ${surface.length} surface nodes\n`);
 
   const session = new ReplaySession(events, surface);
@@ -155,4 +161,63 @@ test('a real session log folds at a balanced cut without corrupting the surface'
   const afterMeasurement = measure(ctx, session);
   assert.ok(afterMeasurement.totalTokens < measurement.totalTokens, 'the fold must shrink the projection');
   process.stdout.write(`[replay] after fold: ${afterMeasurement.totalTokens.toLocaleString('en-US')} tokens, ${session.surface.nodes.length} nodes\n`);
+});
+
+test('the whole ladder rescues a real oversized log with no model call', { skip }, async (t) => {
+  const { header, events } = loadSessionLog(resolved);
+  const { surface } = reconstructSurface(events);
+  const session = new ReplaySession(events, surface);
+  const meter = fakeMeter();
+  const llm = {
+    resolveModelInfo: async () => ({ context: { contextWindow: 196_608 } }),
+  };
+  const ctx = {
+    tokenMeter: meter,
+    get: (name) => ({ tokenMeter: meter, llm })[name],
+  };
+
+  const before = measure(ctx, session);
+  if (before.totalTokens <= 196_608) {
+    t.skip(`log already fits the window (${before.totalTokens} tokens); nothing to rescue`);
+    return;
+  }
+  // The wording that #10138 records: no regex in the host classifier matches it.
+  const failure = {
+    code: 'INVALID_REQUEST',
+    message:
+      'payload core text alone is ~3,068,943 bytes; that is ≥ ~411,983 tokens vs the model window 196608 — no upstream can accept it',
+  };
+
+  const agent = { id: 'replay-agent' };
+  const report = await rescue(ctx, {
+    agent,
+    session,
+    failure,
+    provider: 'replay',
+    config: resolveConfig({}),
+    turn: 7,
+  });
+
+  assert.equal(report.detected.overflow, true, 'the unclassified wording is still recognised as an overflow');
+  assert.equal(report.window.windowTokens, 196_608, 'the observed window overrides the declared one');
+  assert.equal(report.action, 'retry', 'a rescue that shrinks the projection asks the host to retry');
+  assert.equal(report.fold?.ok, true, 'the fold that produced the retry is recorded on the report');
+  assert.ok(
+    fits(report.after.totalTokens, report.window.windowTokens, resolveConfig({}).fitRatio),
+    `the projection now fits: ${report.after.totalTokens} of ${report.window.windowTokens}`,
+  );
+  assert.ok(report.after.totalTokens < before.totalTokens, 'and it is smaller than what failed');
+
+  const tiers = report.tiers.map((tier) => tier.tier);
+  assert.ok(tiers.includes('mechanical-fold'), 'the zero-model tier is the one that did the work');
+
+  const replacement = session.eventAt(report.fold.written.replacementSeq);
+  assert.equal(replacement.data.source.kind, 'compact-checkpoint');
+  assert.equal(hasOpenCompactionTransaction(session.events), false, 'the bracket is closed on the real log too');
+  const after = pairingCuts(session.surface.nodes.map((node) => session.eventAt(node.seq)));
+  assert.equal(after.corrupt, false, 'the real surface survives the rewrite');
+
+  process.stdout.write(
+    `[replay] rescued ${header?.id ?? '?'}: ${before.totalTokens.toLocaleString('en-US')} → ${report.after.totalTokens.toLocaleString('en-US')} tokens (window ${report.window.windowTokens})\n`,
+  );
 });

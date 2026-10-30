@@ -153,8 +153,9 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 
 覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算与计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
-`DSH_SESSION_LOG` 时自动跳过。本机实测：`956 → 169` 节点（991,512 → 298,595 tokens）、
-`2232 → 507`（933,308 → 241,381）、`482 → 183`、`382 → 165`。
+`DSH_SESSION_LOG` 时自动跳过。把整条阶梯对着本机真实日志跑，每一个超标会话都能在**零模型调用**下
+救回来：1,087,491 → 51,257 tokens、991,512 → 94,082、933,308 → 50,890、497,020 → 51,538、
+200,442 → 48,959，窗口 196,608（共 14 个会话，见 `docs/PLAN.md` §5）。
 
 `mount-check` 是集成闸门：它把插件装进**本机已安装 app** 自带的 cordis 4 容器，因此验证的是
 真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`

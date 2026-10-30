@@ -112,10 +112,12 @@ Gate: exercised through the fake context in `tests/rescue.test.js` → **passed*
   chain, (2) a proxy lane refusal, (3) an un-foldable single mega-message that must be
   delegated. A bug found here — the measurement path used the digest's 2000-char clamp, so a
   480k-char message priced at 1,992 tokens — was fixed by splitting raw from rendered text.
-- `tests/replay-real-log.test.js` folds a log captured from a real session and re-verifies the
-  host invariants on the result.
+- `tests/replay-real-log.test.js` drives the whole ladder against a log captured from a real
+  session: the unclassified failure wording in, a smaller projection plus a retry request out,
+  with the host invariants re-checked on the rewritten surface.
 
-Gate: three simulation scenarios green; four real logs green (see §5) → **passed**.
+Gate: three simulation scenarios green; every oversized real log on this machine rescued with
+zero model calls (14 sessions, §5), 44-log sweep with 0 failures → **passed**.
 
 ### Phase G — Release (in progress)
 
@@ -160,18 +162,34 @@ bundle shape.
 
 ## 5. Real-log evidence
 
-`DSH_SESSION_LOG=<path> node --test tests/replay-real-log.test.js`, on logs from this machine:
+The replay gate now drives the **whole ladder**, not just the planner:
+`DSH_SESSION_LOG=<path> node --test tests/replay-real-log.test.js`. It loads a log captured from
+this machine, feeds the wording the host classifier misses, and asks the plugin to rescue it with
+no model call. Every oversized log on this machine, in one pass:
 
-| Session | Events | Surface nodes | Estimated tokens | After fold | Nodes after |
-|---|---|---|---|---|---|
-| `d314a822` | 7130 | 956 | 991,512 | 298,595 | 169 |
-| `9a608fe8` | 4915 | 2232 | 933,308 | 241,381 | 507 |
-| `abc05855` | 1006 | 482 | 306,317 | ~84,529 | 183 |
-| `8697fd97` | 864 | 382 | 175,204 | 56,897 | 165 |
+| Session | Tokens before | After rescue | Window |
+|---|---|---|---|
+| `63836d1c` | 1,087,491 | 51,257 | 196,608 |
+| `335a745b` | 1,067,701 | 51,761 | 196,608 |
+| `eba32f8b` | 1,067,623 | 51,683 | 196,608 |
+| `d314a822` | 991,512 | 94,082 | 196,608 |
+| `9a608fe8` | 933,308 | 50,890 | 196,608 |
+| `753cc91b` | 829,396 | 55,545 | 196,608 |
+| `de748264` | 667,760 | 79,063 | 196,608 |
+| `0421090c` | 642,451 | 79,058 | 196,608 |
+| `abc05855` | 497,020 | 51,538 | 196,608 |
+| `711575e5` | 444,738 | 95,612 | 196,608 |
+| `7b364d6b` | 402,212 | 48,421 | 196,608 |
+| `1d26101d` | 352,583 | 87,808 | 196,608 |
+| `96553c67` | 305,736 | 78,317 | 196,608 |
+| `dbc6854d` | 200,442 | 48,959 | 196,608 |
 
-Each replay asserts: the surface is well formed (`corrupt === false`), both fold boundaries
-are balance-safe, the projection shrinks, the transaction bracket closes, and the replacement
-carries `source.kind === 'compact-checkpoint'`.
+Each run asserts: the overflow wording is recognised, the **observed** window overrides the
+declared one, the ladder reaches the zero-model tier, the projection ends up under
+`fitRatio × window`, the surface stays well formed (`corrupt === false`), both fold boundaries
+are balance-safe, the transaction bracket closes, and the replacement carries
+`source.kind === 'compact-checkpoint'`. Logs that are empty or already fit are skipped rather
+than failed — an all-log sweep of the 44 sessions in `--H-AI--` produces 0 failures.
 
 ## 6. Known limits
 
