@@ -2,7 +2,9 @@ name: test
 
 on:
   push:
-    branches: [main]
+    # this repository's default branch is `master`; `main` is kept so a renamed
+    # default branch keeps running the suite instead of silently skipping it
+    branches: [main, master]
   pull_request:
   workflow_dispatch:
 
