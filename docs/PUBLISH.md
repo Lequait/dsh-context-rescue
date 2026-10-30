@@ -143,11 +143,13 @@ request), with no clone in between:
 
 ## 4. npm
 
-Either publish locally:
+Either publish locally, through the guard script:
 
 ```bash
-npm login                 # the CLI currently answers ENEEDAUTH
-npm publish --access public
+npm run publish:npm -- --dry-run   # refuses a dirty tree, checks the tarball list, proves the
+                                   # version is not already taken; says so when you are not logged in
+npm login                          # the only step that needs an account
+npm run publish:npm                # publishes, then prints the install line
 ```
 
 or let the release workflow do it from a tag — it runs the type check, the tests, the simulation,

@@ -33,6 +33,7 @@
     "inspect": "node scripts/run-host-node.mjs scripts/dev/inspect-session.mjs",
     "install-smoke": "node scripts/run-host-node.mjs scripts/dev/install-smoke.mjs",
     "publish:remote": "node scripts/publish-remote.mjs",
+    "publish:npm": "node scripts/publish-npm.mjs",
     "publish:rehearse": "node scripts/run-host-node.mjs scripts/dev/publish-rehearse.mjs",
     "scan": "node scripts/dev/scan-sessions.mjs",
     "host-session": "node scripts/run-host-node.mjs scripts/dev/host-session-check.mjs",
