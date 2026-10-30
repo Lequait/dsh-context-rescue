@@ -98,6 +98,14 @@ async function main() {
         entries.some((entry) => entry.id === 'context-rescue' && entry.name === 'dsh-context-rescue'),
         JSON.stringify(entries),
       );
+      // The host loader imports every entry by its bare specifier with the profile as the
+      // parent URL, so the patch `name` has to be the package name. This can only be read
+      // from the host, which is why it lives inside this branch rather than below it.
+      check(
+        'the patch entry name is the installed package name',
+        patchEntryName === manifest.name,
+        `${patchEntryName} vs ${manifest.name}`,
+      );
 
       // The host silently skips a bundle whose compatibility check fails, so a
       // wrong engines range would make the package install and do nothing. The
@@ -123,13 +131,8 @@ async function main() {
     check('the installed lib/ is importable on its own', typeof libRescue.rescue === 'function');
 
     // The host loader imports every entry by its bare specifier with the profile as the parent
-    // URL, so `name` in the patch must equal the package name, and that specifier must resolve
-    // from a project whose only dependency is this package.
-    check(
-      'the patch entry name is the installed package name',
-      patchEntryName === manifest.name,
-      `${patchEntryName} vs ${manifest.name}`,
-    );
+    // URL, so that specifier must resolve from a project whose only dependency is this package.
+    // (The name in the patch is checked next to the loader itself, above.)
     const bare = execFileSync(
       process.execPath,
       ['--input-type=module', '-e',

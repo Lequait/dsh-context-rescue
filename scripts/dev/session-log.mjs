@@ -9,7 +9,39 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { zstdDecompressSync } from 'node:zlib';
+import { createRequire } from 'node:module';
+
+// zstd landed in Node's zlib well after 20, and a static import of a name that
+// does not exist there fails at module load, taking the whole test file with it.
+// Resolving it on first use keeps this module importable on every supported Node.
+const nodeRequire = createRequire(import.meta.url);
+/** @type {((buffer: Buffer) => Buffer) | undefined} */
+let zstdDecoder;
+
+/** @param {Buffer} buffer @returns {Buffer} */
+function zstdDecompressSync(buffer) {
+  if (zstdDecoder === undefined) {
+    const zlib = nodeRequire('node:zlib');
+    if (typeof zlib.zstdDecompressSync !== 'function') {
+      const error = new Error('this Node build cannot decode zstd (no zlib.zstdDecompressSync); run with Node 22.15+ or the Node bundled with the app');
+      // @ts-expect-error - tagging a plain Error for callers that want to skip
+      error.code = 'ERR_NO_ZSTD';
+      throw error;
+    }
+    zstdDecoder = zlib.zstdDecompressSync;
+  }
+  return zstdDecoder(buffer);
+}
+
+/** True when this process can decode a zstd frame at all. */
+export function supportsZstd() {
+  try {
+    zstdDecompressSync(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]));
+    return true;
+  } catch (error) {
+    return error?.code !== 'ERR_NO_ZSTD';
+  }
+}
 
 const MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd]);
 

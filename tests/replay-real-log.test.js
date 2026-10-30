@@ -18,7 +18,7 @@ import { existsSync, statSync } from 'node:fs';
 
 import { ReplaySession, expandHome, newestUnder } from '../scripts/dev/replay-session.mjs';
 
-import { loadSessionLog, reconstructSurface } from '../scripts/dev/session-log.mjs';
+import { loadSessionLog, reconstructSurface, supportsZstd } from '../scripts/dev/session-log.mjs';
 import { measure } from '../lib/measure.js';
 import { applyFold } from '../lib/fold.js';
 import { hasOpenCompactionTransaction, pairingCuts, planFold } from '../lib/plan.js';
@@ -29,7 +29,13 @@ import { fakeMeter } from './fake-session.js';
 
 const raw = process.env.DSH_SESSION_LOG;
 const resolved = raw ? (existsSync(expandHome(raw)) && statSync(expandHome(raw)).isDirectory() ? newestUnder(expandHome(raw)) : expandHome(raw)) : undefined;
-const skip = resolved === undefined ? 'DSH_SESSION_LOG is not set' : !existsSync(resolved) ? `log not found: ${resolved}` : false;
+const skip = resolved === undefined
+  ? 'DSH_SESSION_LOG is not set'
+  : !existsSync(resolved)
+    ? `log not found: ${resolved}`
+    : !supportsZstd()
+      ? 'this Node build cannot decode zstd; run the suite under Node 22.15+ or the app\'s Node'
+      : false;
 
 test('a real session log folds at a balanced cut without corrupting the surface', { skip }, (t) => {
   const { header, events } = loadSessionLog(resolved);
