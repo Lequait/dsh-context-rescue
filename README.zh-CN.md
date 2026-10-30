@@ -208,6 +208,12 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 让引擎自己占住 `compaction` 槽位，然后只给假 `llm`（拿不到模型）。断言的是三件事——插件不抢槽、
 "借了引擎却没缩小投影"不算救回来、以及借失败之后引擎与容器都还完好（再调一次也不炸）。
 
+"借"是它敢跟已有压缩器并排装的原因。`dsh-smart-compact@0.5.3` 继承的是同一个引擎，并重写了
+`compactIfNeeded(agent, trigger, signal)`：非压力触发直接交给基础引擎、有待处理的 `new_context` 请求时
+绕过压力档、拒绝时返回 `null` 而不是抛错。正因为这层重写，我们才用同样三个参数去问 `context-overflow`，
+把 `null` 当作"什么都没缩小"继续走零模型折叠；另有单测钉住——引擎因自身原因抛错（预算测量失败、基础引擎
+报错）既不算"车道拒绝"，也拦不住折叠。
+
 `mount-check` 是集成闸门：它把插件装进**本机已安装 app** 自带的 cordis 4 容器，因此验证的是
 真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`
 派发，而不是手搓的假 context。它断言工具确实注册到真实 `tools` 服务、瀑布返回

@@ -202,6 +202,33 @@ test('a borrowed engine that changes nothing is not counted as a rescue', async 
   assert.match(String(report.reason), /mechanical digest fold/);
 });
 
+test('a host engine that throws for its own reasons does not stop the zero-model fold', async () => {
+  // dsh-smart-compact's engine resolves null when it refuses and throws when the
+  // engine itself fails (budget measurement, base engine error). Neither is the
+  // billion-context lane refusal, so the ladder must keep going instead of
+  // latching laneBlocked and giving up on the session.
+  const session = sessionWithLongHistory();
+  let calls = 0;
+  const compaction = {
+    async compactIfNeeded() {
+      calls += 1;
+      throw new TypeError("Cannot read properties of undefined (reading 'retainTokens')");
+    },
+  };
+  const ctx = fakeContext({ llm: fakeLlm(60000), compaction });
+  const agent = { session };
+
+  const report = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config: resolveConfig({}) });
+  const hostTier = report.tiers.find((tier) => tier.tier === 'host-compaction');
+  assert.equal(calls, 1);
+  assert.equal(hostTier.ok, false);
+  assert.equal(hostTier.laneRefusal, false, 'an engine bug is not a lane refusal');
+  assert.match(String(hostTier.error), /retainTokens/);
+  assert.equal(rescueStateOf(agent).laneBlocked, false);
+  assert.equal(report.action, 'retry');
+  assert.equal(report.fold?.ok, true);
+});
+
 test('a projection that already fits is retried without being rewritten', async () => {
   const session = sessionWithLongHistory({ turns: 4, chars: 400 });
   const nodesBefore = session.surface.nodes.length;

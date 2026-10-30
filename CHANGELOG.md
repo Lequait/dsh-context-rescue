@@ -40,7 +40,10 @@ where a proxy owns compression.
 - The `compaction` service slot is never registered; the plugin only borrows it, so it composes
   with `dsh-smart-compact` and with the built-in engine. A coexistence gate mounts
   `dsh-compaction-basic` next to the plugin and rescues anyway when that engine cannot
-  summarise, leaving both the engine and the container intact.
+  summarise, leaving both the engine and the container intact. The borrow matches the signature
+  `dsh-smart-compact@0.5.3` publishes (`compactIfNeeded(agent, trigger, signal)`, refusal →
+  `null`), and an engine that throws for its own reasons neither counts as a lane refusal nor
+  stops the zero-model fold.
 
 ### Entry points
 

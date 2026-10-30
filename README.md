@@ -233,6 +233,15 @@ that cannot summarize, and asserts three things: the plugin does not take the sl
 returns without shrinking the projection is not recorded as a rescue, and both the engine and the
 container are still intact after that borrow fails.
 
+Borrowing is what makes the plugin safe to install next to a compactor that already owns the slot.
+`dsh-smart-compact@0.5.3` subclasses the same engine and overrides
+`compactIfNeeded(agent, trigger, signal)`: non-pressure triggers go straight through to the base
+engine, a pending `new_context` request bypasses the pressure bands, and a refusal resolves `null`
+rather than throwing. That override is why the plugin asks for `context-overflow` with the same
+three arguments, treats `null` as "nothing shrank" and falls through to the zero-model fold, and a
+unit test pins that an engine throwing for its own reasons (a budget measurement error, a base
+engine failure) is neither counted as a lane refusal nor able to stop the fold.
+
 `mount-check` is the integration gate: it loads the plugin into the **installed app's** cordis
 4 container, so it exercises the real `inject`/`Service` wiring and the real
 `ctx.waterfall('agent/request-error', payload, next)` dispatch instead of a hand-rolled context.
