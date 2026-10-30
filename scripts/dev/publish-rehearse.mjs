@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { dshAsarCandidates } from '../host-paths.mjs';
@@ -43,7 +43,19 @@ const check = (label, condition, detail) => {
 };
 
 function git(args, cwd) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  try {
+    return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  } catch (error) {
+    const stderr = typeof error?.stderr === 'string' ? error.stderr.trim() : '';
+    const detail = stderr === '' ? `git ${args.join(' ')} failed with status ${error?.status ?? '?'}` : stderr;
+    throw new Error(`${detail} (in ${cwd})`);
+  }
+}
+
+/** Ask a question without caring whether git says no; `git()` aborts on any non-zero status. */
+function gitAsk(args, cwd) {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  return result.status === 0 ? String(result.stdout).trim() : undefined;
 }
 
 async function hostValidator() {
@@ -65,11 +77,23 @@ function makeRehearsal(prefix) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   const cloneDir = path.join(dir, 'work');
   const bareDir = path.join(dir, 'remote.git');
-  execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, cloneDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  cloneCheckout(ROOT, cloneDir);
   execFileSync('git', ['init', '--quiet', '--bare', bareDir], { stdio: ['ignore', 'pipe', 'pipe'] });
   configureIdentity(cloneDir);
   ensureBranch(cloneDir);
   return { dir, clone: cloneDir, bare: bareDir };
+}
+
+/** Clone without relying on the source's HEAD having a branch checked out. */
+function cloneCheckout(source, target) {
+  execFileSync('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', source, target],
+    { stdio: ['ignore', 'pipe', 'pipe'] });
+  const head = git(['rev-parse', 'HEAD'], source);
+  const atHead = gitAsk(['for-each-ref', '--format=%(refname:short)', '--points-at', head, 'refs/heads'], target);
+  const existing = atHead === undefined ? '' : atHead.split(String.fromCharCode(10)).map((line) => line.trim()).find((line) => line !== '' && line !== undefined);
+  if (existing !== undefined) git(['checkout', '--quiet', existing], target);
+  else git(['checkout', '--quiet', '-b', 'master', head], target);
+  return head;
 }
 
 /**
@@ -77,8 +101,8 @@ function makeRehearsal(prefix) {
  * Give the clone a branch of its own so the rehearsal exercises the branch flow, not an error.
  */
 function ensureBranch(dir, name = 'master') {
-  const current = git(['symbolic-ref', '--quiet', '--short', 'HEAD'], dir, { allowFailure: true });
-  if (typeof current === 'string' && current.trim() !== '') return current.trim();
+  const current = gitAsk(['symbolic-ref', '--quiet', '--short', 'HEAD'], dir);
+  if (current !== undefined && current !== '') return current;
   git(['checkout', '--quiet', '-b', name], dir);
   return name;
 }
@@ -119,7 +143,7 @@ if (fs.existsSync(path.join(ROOT, '.git', 'shallow'))) {
 
 try {
   process.stdout.write('1. clone this checkout and create a bare remote\n');
-  execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, clone], { stdio: ['ignore', 'pipe', 'pipe'] });
+  cloneCheckout(ROOT, clone);
   execFileSync('git', ['init', '--quiet', '--bare', bare], { stdio: ['ignore', 'pipe', 'pipe'] });
   configureIdentity(clone);
   ensureBranch(clone);
