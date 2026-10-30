@@ -1,7 +1,9 @@
 name: release
 
-# Publishing needs two things this repository cannot hold: an npm token and a hosted remote.
-# `docs/PUBLISH.md` covers the git side; this workflow covers npm once `NPM_TOKEN` exists.
+# Publishing needs one thing this repository does not hold: an npm token. Without it the whole
+# chain still runs -- type check, tests, simulation, install smoke, publish rehearsal, tag/version
+# match -- and the npm step reports why it was skipped instead of failing the run. A red run for a
+# missing secret teaches people to ignore red runs; a run that says "skipped: no NPM_TOKEN" does not.
 on:
   push:
     tags: ['v*']
@@ -12,7 +14,7 @@ permissions:
   id-token: write # provenance
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +50,26 @@ jobs:
             console.log('tag matches package version ' + version);
           "
       - name: npm publish
+        if: ${{ secrets.NPM_TOKEN != '' }}
         run: npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Report the npm step
+        run: |
+          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "Published to npm."
+          else
+            echo "Skipped npm publish: no NPM_TOKEN repository secret."
+            echo "The marketplace entry uses the git source, so this repository is installable"
+            echo "without npm. Add the secret to publish an npm-sourced version too."
+          fi
+          {
+            echo "### Release ${{ github.ref_name }}"
+            echo ""
+            if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+              echo "- every gate passed and the tarball was published to npm";
+            else
+              echo "- every gate passed; npm publish was skipped (no NPM_TOKEN)";
+            fi
+            echo "- the git source in market/index.json is what the listing installs"
+          } >> "$GITHUB_STEP_SUMMARY"
