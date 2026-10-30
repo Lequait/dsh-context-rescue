@@ -1,0 +1,158 @@
+/**
+ * End-to-end replay against a log captured from a real session.
+ *
+ * Point DSH_SESSION_LOG at a `session.v4.jsonl.zstd` to run it:
+ *
+ *     DSH_SESSION_LOG=~/.dsh/sessions/--H-AI--/<id>/session.v4.jsonl.zstd node --test
+ *
+ * The test is skipped when the variable is unset, so the suite stays portable.
+ * What it proves is the part unit fixtures cannot: that the planner's pairing
+ * model agrees with the host on a surface built from thousands of real events,
+ * and that a fold written into that surface survives the host's own invariants.
+ * @module dsh-context-rescue/tests/replay-real-log
+ */
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+import { loadSessionLog, reconstructSurface } from '../scripts/dev/session-log.mjs';
+import { measure } from '../lib/measure.js';
+import { applyFold } from '../lib/fold.js';
+import { hasOpenCompactionTransaction, pairingCuts, planFold } from '../lib/plan.js';
+import { resolveConfig } from '../lib/config.js';
+import { fakeMeter } from './fake-session.js';
+
+/** Expand `~` so the env var can be written the way a shell user expects. */
+function expand(path) {
+  if (path.startsWith('~')) return join(homedir(), path.slice(1));
+  return path;
+}
+
+/** The newest session log on this machine, used when only a directory is given. */
+function newestUnder(directory) {
+  const candidates = [];
+  const stack = [directory];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const child = join(current, entry.name);
+      if (entry.isDirectory()) stack.push(child);
+      else if (entry.name.endsWith('.jsonl.zstd')) candidates.push(child);
+    }
+  }
+  candidates.sort((left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs);
+  return candidates[0];
+}
+
+const raw = process.env.DSH_SESSION_LOG;
+const resolved = raw ? (existsSync(expand(raw)) && statSync(expand(raw)).isDirectory() ? newestUnder(expand(raw)) : expand(raw)) : undefined;
+const skip = resolved === undefined ? 'DSH_SESSION_LOG is not set' : !existsSync(resolved) ? `log not found: ${resolved}` : false;
+
+/** A session shell over a loaded log: appends land in memory, surface is live. */
+class ReplaySession {
+  constructor(events, surface) {
+    this.events = events;
+    this.surface = { nodes: surface };
+    this.seq = events.at(-1)?.seq ?? 0;
+    this.id = 'replay';
+  }
+
+  append(type, data, options) {
+    const seq = ++this.seq;
+    const event = { seq, time: seq, type, data: data ?? {}, ...(options ? { options } : {}) };
+    this.events.push(event);
+    const op = options?.surfaceOp;
+    if (op) {
+      const start = this.surface.nodes.indexOf(op.startSeq);
+      const end = this.surface.nodes.indexOf(op.endSeq);
+      assert.ok(start >= 0 && end >= start, 'replacement range must be on the surface');
+      this.surface.nodes.splice(start, end - start + 1, seq);
+    } else if (['system/message', 'user/message', 'assistant/message', 'tool/result', 'tool/call', 'tool/ptc-dispatch'].includes(type)) {
+      this.surface.nodes.push(seq);
+    }
+    return event;
+  }
+
+  eventAt(seq) {
+    return this.events.find((event) => event.seq === seq);
+  }
+}
+
+test('a real session log folds at a balanced cut without corrupting the surface', { skip }, () => {
+  const { header, events } = loadSessionLog(resolved);
+  const { surface } = reconstructSurface(events);
+  assert.ok(surface.length > 20, `expected a long surface, got ${surface.length}`);
+  process.stdout.write(`[replay] ${header?.id ?? '?'}: ${events.length} events, ${surface.length} surface nodes\n`);
+
+  const session = new ReplaySession(events, surface);
+  const ctx = { tokenMeter: fakeMeter(), get: (name) => (name === 'tokenMeter' ? fakeMeter() : undefined) };
+  const meter = fakeMeter();
+  ctx.get = () => meter;
+  ctx.tokenMeter = meter;
+
+  const measurement = measure(ctx, session);
+  process.stdout.write(`[replay] surface tokens (estimate): ${measurement.totalTokens.toLocaleString('en-US')}\n`);
+
+  const whole = pairingCuts(measurement.nodes.map((node) => session.eventAt(node.seq)));
+  assert.equal(whole.corrupt, false, 'the real surface is well formed: balance never goes negative');
+  // A log captured mid-turn can end with a call that has no result yet. That is a
+  // legal surface, so the planner is expected to keep the open call in the tail
+  // instead of refusing to work.
+  const openCallsAtEnd = whole.open;
+  if (openCallsAtEnd === 0) {
+    assert.equal(whole.cuts.at(-1), true, 'a closed surface is balanced all the way to its end');
+  } else {
+    process.stdout.write(`[replay] surface ends with ${openCallsAtEnd} unanswered call(s); the planner must keep them`);
+    process.stdout.write('\n');
+    assert.equal(whole.cuts.at(-1), false, 'an open call keeps the last cut unsafe');
+  }
+
+  const config = resolveConfig({});
+  const plan = planFold(session, measurement, {
+    retainOptions: [Math.max(config.retainMinTokens, Math.floor(measurement.totalTokens * config.retainRatio))],
+    targetTokens: Math.floor(measurement.totalTokens * config.targetRatio),
+    minFoldTokens: 1000,
+    pinFirstUserMessage: true,
+  });
+  assert.ok(plan, 'a real oversized session must produce a fold plan');
+  assert.equal(whole.cuts[plan.startIdx], true, 'start cut is balanced');
+  assert.equal(whole.cuts[plan.endIdx + 1], true, 'end cut is balanced');
+  process.stdout.write(`[replay] plan: ${plan.shadowedSeqs.length} nodes, ${plan.shadowedTokenCount.toLocaleString('en-US')} tokens folded\n`);
+
+  const surfaceBefore = session.surface.nodes.length;
+  const written = applyFold(session, {
+    start: plan.start,
+    end: plan.end,
+    shadowedSeqs: plan.shadowedSeqs,
+    shadowedTokenCount: plan.shadowedTokenCount,
+    text: '## 会话急救摘要\n- 折叠测试',
+    kind: 'fallback',
+  });
+  assert.equal(hasOpenCompactionTransaction(session.events), false, 'the transaction bracket is closed');
+  assert.equal(session.surface.nodes.length, surfaceBefore - plan.shadowedSeqs.length + 1);
+
+  const replacement = session.eventAt(written.replacementSeq);
+  assert.equal(replacement.data.source.kind, 'compact-checkpoint');
+  assert.equal(replacement.options.surfaceOp.op, 'replace');
+
+  const after = pairingCuts(session.surface.nodes.map((node) => session.eventAt(node.seq)));
+  assert.equal(after.corrupt, false, 'the rewritten surface is still well formed');
+  // A fold may legitimately absorb a trailing unanswered call (its assistant
+  // message is summarised away), which makes the request more valid, not less.
+  // What it must never do is leave more calls open than it started with, or go
+  // negative, both of which would corrupt the surface.
+  assert.ok(after.open <= openCallsAtEnd, `the rewrite never invents an open call (${after.open} > ${openCallsAtEnd})`);
+
+  const afterMeasurement = measure(ctx, session);
+  assert.ok(afterMeasurement.totalTokens < measurement.totalTokens, 'the fold must shrink the projection');
+  process.stdout.write(`[replay] after fold: ${afterMeasurement.totalTokens.toLocaleString('en-US')} tokens, ${session.surface.nodes.length} nodes\n`);
+});

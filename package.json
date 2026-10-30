@@ -1,0 +1,52 @@
+{
+  "name": "dsh-context-rescue",
+  "version": "0.1.0",
+  "description": "Emergency rescue for DeepSeek Harness sessions that hit the model context window: detect the overflow, fold the oldest history into a durable digest, retry the same step.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./lib/*": "./lib/*"
+  },
+  "files": [
+    "index.js",
+    "lib/",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "simulate": "node scripts/simulate.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "context-window",
+    "compaction",
+    "context-overflow",
+    "rescue"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/dsh-plugin": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-plugin": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT"
+}

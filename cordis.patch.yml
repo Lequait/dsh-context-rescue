@@ -1,0 +1,6 @@
+# Bundle patch applied by `dsh plugin add dsh-context-rescue`.
+# `id` only needs to be unique inside the bundle; `name` must resolve to the
+# package's plugin entry (this package's default export).
+- insert:
+    - id: context-rescue
+      name: dsh-context-rescue
