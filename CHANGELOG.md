@@ -16,6 +16,14 @@ where a proxy owns compression.
   `isSurfaceEligibleType` reports both as not eligible, so replayed projections were wider than
   real ones and three logs looked oversized when they already fit.
 
+### Fixed
+
+- A session whose *first* message alone is over the window was not rescued at all: the planner
+  kept the head pinned, found nothing else big enough to fold, and reported "nothing foldable".
+  The pin is now a budget decision -- when the pinned message alone is over the target it is
+  folded like anything else, and the digest says so, because keeping it would keep every request
+  failing.
+
 ### Configuration
 
 - Options are validated at mount: unknown keys, an unknown `mode`, out-of-range ratios and a
@@ -67,7 +75,7 @@ where a proxy owns compression.
 
 - 44 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
-- A sweep of every session log on the development machine: 162 logs, 32 oversized, 32 rescued,
+- A sweep of every session log on the development machine: 168 logs, 32 oversized, 32 rescued,
   0 failures.
 - The host's own `Session` class, loaded out of the app bundle, seeds 162 captured logs and folds
   65 of them in-process (30 of those through the pre-flight path, with no failed request first): every append is validated by the host's `validateSessionEventData`, the

@@ -300,3 +300,20 @@ test('a second rejection in the same turn forces the ladder even when the projec
   assert.ok(measure(ctx, session).totalTokens < before.totalTokens,
     `${measure(ctx, session).totalTokens} < ${before.totalTokens}`);
 });
+
+test('a session whose first message alone overflows is rescued, and the digest says so', async () => {
+  const session = new FakeSession();
+  session.append('user/message', { content: [{ type: 'text', text: 'x'.repeat(900_000) }] });
+  seedConversation(session, { turns: 6, chars: 400 });
+  const ctx = fakeContext({ llm: fakeLlm(196_608) });
+  const config = resolveConfig({});
+  const before = measure(ctx, session).totalTokens;
+  assert.ok(before > 196_608, `seed must exceed the window: ${before}`);
+
+  const report = await rescue(ctx, { agent: { session }, session, failure: OVERFLOW, provider: 'p', config });
+
+  assert.equal(report.action, 'retry');
+  assert.ok(report.after.totalTokens < before);
+  assert.match(reportText(session), /这次折叠包含了会话最开始的那条消息/);
+  assert.equal(hasOpenCompactionTransaction(session.events), false);
+});

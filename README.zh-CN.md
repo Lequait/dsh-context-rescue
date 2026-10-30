@@ -163,7 +163,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 | `minFoldTokens` | `4000` | 小于这个量不值得开一次事务 |
 | `maxAttemptsPerTurn` | `2` | 每个 assistant 轮次的急救预算 |
 | `maxDigestChars` | `12000` | 检查点正文硬上限 |
-| `pinFirstUserMessage` | `true` | 首条用户消息永不进入折叠区间 |
+| `pinFirstUserMessage` | `true` | 首条用户消息不进折叠区间——除非它自己就超过了预算 |
 | `windowFallback` | `196608` | 失败与模型信息都给不出窗口时使用 |
 | `extraPatterns` | `[]` | 追加的溢出识别正则 |
 | `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | 命中即永久关闭 T2 |

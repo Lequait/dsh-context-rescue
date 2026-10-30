@@ -186,7 +186,7 @@ All keys are optional; pass them through the plugin's config block.
 | `minFoldTokens` | `4000` | below this, folding is not worth a transaction |
 | `maxAttemptsPerTurn` | `2` | rescue budget per assistant turn |
 | `maxDigestChars` | `12000` | hard cap on the checkpoint body |
-| `pinFirstUserMessage` | `true` | keep the first user message outside every fold |
+| `pinFirstUserMessage` | `true` | keep the first user message outside every fold, unless that message alone is over the budget |
 | `windowFallback` | `196608` | window used when neither the failure nor the model info provides one |
 | `extraPatterns` | `[]` | regex sources added to overflow detection |
 | `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | proxy refusals that permanently block T2 |
@@ -265,7 +265,7 @@ sessions are captured, and both commands recompute them.
 the `Session` class out of the installed app bundle and replays captured logs through it, so the
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 162 logs seed, 65 fold (twice each, to prove a folded session can be
+next request would carry. 168 logs seed, 65 fold (twice each, to prove a folded session can be
 folded again), 30 of those folds come from the pre-flight path before any request failed, and the rest are skipped because the host itself cannot re-seed them in isolation
 (a foreign plugin's message projection, or a pre-v4 log).
 

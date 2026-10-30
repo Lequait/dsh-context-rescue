@@ -144,3 +144,39 @@ test('applyFold closes the bracket when the replacement fails', () => {
   assert.equal(end.type, 'compaction/end');
   assert.match(String(end.data.error), /disk full/);
 });
+
+test('the first user message stays pinned when it fits the budget', () => {
+  const session = new FakeSession();
+  seedConversation(session, { turns: 24, chars: 3000 });
+  const ctx = ctxWithMeter();
+  const measurement = measure(ctx, session);
+  const plan = planFold(session, measurement, {
+    retainOptions: [8000],
+    targetTokens: 150_000,
+    minFoldTokens: 1000,
+    pinFirstUserMessage: true,
+  });
+  assert.ok(plan);
+  assert.equal(plan.pinDropped, false, 'a task statement that fits is protected');
+  assert.ok(plan.startIdx >= 1, 'the pin keeps the first message out of the fold');
+});
+
+test('a first user message that alone overflows is folded too', () => {
+  const session = new FakeSession();
+  session.append('user/message', { content: [{ type: 'text', text: 'x'.repeat(900_000) }] });
+  seedConversation(session, { turns: 6, chars: 400 });
+  const ctx = ctxWithMeter();
+  const measurement = measure(ctx, session);
+  const config = resolveConfig({});
+  const plan = planFold(session, measurement, {
+    retainOptions: [40_000, 20_000, 4000],
+    targetTokens: Math.floor(196_608 * config.targetRatio),
+    minFoldTokens: config.minFoldTokens,
+    pinFirstUserMessage: true,
+  });
+  assert.ok(plan, 'the oversized head is foldable');
+  assert.equal(plan.pinDropped, true, 'the planner admits the pin had to go');
+  assert.equal(plan.startIdx, 0, 'the fold starts at the message that caused the overflow');
+  assert.equal(plan.endIdx, 0, 'the small tail stays verbatim');
+  assert.ok(plan.retainedTokens < 10_000, 'what is left is small');
+});
