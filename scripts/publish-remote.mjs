@@ -236,9 +236,9 @@ async function main() {
       `install     dsh plugin add ${spec}`,
       '',
       'still manual (needs an account, not a credential this script may hold):',
-      '  - the awesome-list submission is one data file: docs/awesome-entry.yml (docs/PUBLISH.md)',
-      '  - the repository topic  dsh-plugin  (set it once; listings scan for it)',
+      '  - the age-gated listing PR: data/plugins/Lequait__dsh-context-rescue.yml (docs/PUBLISH.md §3)',
       '  - npm publish, if you want an npm-sourced version too',
+      '  - the dsh-plugin topic is already set on this repository; other listings scan for it',
       '',
     ].join('\n'),
   );
