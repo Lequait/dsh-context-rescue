@@ -141,6 +141,15 @@ async function main() {
   if (branch === 'HEAD') {
     throw new Error('the checkout is on a detached HEAD; check out a branch first');
   }
+  // The index commit is authored by whoever runs this. A machine with no identity (a fresh CI
+  // runner, a container) fails several steps later with git's own "empty ident name" — say it
+  // here, where the fix is obvious.
+  const identityName = git(['config', 'user.name'], { allowFailure: true });
+  const identityEmail = git(['config', 'user.email'], { allowFailure: true });
+  if (identityName === undefined || identityName === '' || identityEmail === undefined || identityEmail === '') {
+    throw new Error('this checkout has no git identity, so the index commit cannot be authored;\n'
+      + 'set one with: git config user.name "Your Name" && git config user.email "you@example.com"');
+  }
 
   const existing = git(['remote', 'get-url', remote], { allowFailure: true });
   // A brand-new repository defaults to 'master' while GitHub and every instruction in this repo

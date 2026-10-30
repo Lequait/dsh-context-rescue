@@ -54,6 +54,12 @@ async function hostValidator() {
   return import(`file://${file.replaceAll('\\', '/')}`);
 }
 
+/** A rehearsal repository runs on hosts without a git identity (CI runners); give it one. */
+function configureIdentity(dir) {
+  execFileSync('git', ['config', 'user.name', 'publish rehearsal'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  execFileSync('git', ['config', 'user.email', 'rehearsal@example.invalid'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
 /** A standalone clone plus an empty bare remote, the shape of a first publish. */
 function makeRehearsal(prefix) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -61,6 +67,7 @@ function makeRehearsal(prefix) {
   const bareDir = path.join(dir, 'remote.git');
   execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, cloneDir], { stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync('git', ['init', '--quiet', '--bare', bareDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  configureIdentity(cloneDir);
   return { dir, clone: cloneDir, bare: bareDir };
 }
 
@@ -102,6 +109,7 @@ try {
   process.stdout.write('1. clone this checkout and create a bare remote\n');
   execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, clone], { stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync('git', ['init', '--quiet', '--bare', bare], { stdio: ['ignore', 'pipe', 'pipe'] });
+  configureIdentity(clone);
   const sourceHead = git(['rev-parse', 'HEAD'], ROOT);
   const sourceStatus = git(['status', '--porcelain'], ROOT);
   check('the clone starts at this checkout', git(['rev-parse', 'HEAD'], clone) === sourceHead);
