@@ -40,7 +40,8 @@
     "coexist": "node scripts/run-host-node.mjs scripts/dev/coexist-check.mjs",
     "e2e-install": "node scripts/run-host-node.mjs scripts/dev/e2e-install.mjs",
     "market-install": "node scripts/run-host-node.mjs scripts/dev/market-install.mjs",
-    "boot-check": "node scripts/run-host-node.mjs scripts/dev/boot-check.mjs"
+    "boot-check": "node scripts/run-host-node.mjs scripts/dev/boot-check.mjs",
+    "schema-check": "node scripts/run-host-node.mjs scripts/dev/schema-check.mjs"
   },
   "dsh": {
     "bundle": {
@@ -72,5 +73,8 @@
   "homepage": "https://github.com/Lequait/dsh-context-rescue#readme",
   "bugs": {
     "url": "https://github.com/Lequait/dsh-context-rescue/issues"
+  },
+  "dependencies": {
+    "schemastery": "^3.18.0"
   }
 }

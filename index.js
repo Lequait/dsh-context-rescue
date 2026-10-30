@@ -16,10 +16,17 @@
 import { registerCommands } from './lib/command.js';
 import { resolveConfig, validateConfig } from './lib/config.js';
 import { log, preflight, rememberReport, rescue, rescueStateOf } from './lib/rescue.js';
+import { Config } from './lib/schema.js';
 import { registerTools } from './lib/tools.js';
 import { errorText } from './lib/util.js';
 
 export const name = 'context-rescue';
+
+/**
+ * The options this plugin accepts, declared so the host can validate a profile
+ * patch before the plugin starts and document them in `--dump-config-schema`.
+ */
+export { Config };
 
 /**
  * The request-error hook is the whole point, and the tools service is needed to

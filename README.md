@@ -265,6 +265,21 @@ plugin does not know, a ratio outside its usable range, or a `targetRatio` that 
 `fitRatio` is logged as a `config:` warning instead of quietly changing the behaviour you expect.
 A rescue plugin that silently ignores a typo is indistinguishable from one that is not installed.
 
+### The options are a real schema, not a wish list
+
+`lib/schema.js` declares every option below as a Cordis/Schemastery schema, which the host uses in
+two ways: it validates your patch **before** the plugin starts, and it documents the options in
+`dsh --dump-config-schema`. A value the schema refuses (`retainRatio: 5`, `mode: aggressive`,
+`preflight: "yes"`) stops the boot with the field name and the bound, instead of starting with a
+silently clamped number:
+
+```
+$.retainRatio expected number <= 0.6 but got 5
+```
+
+Unknown keys are deliberately *left alone* by the schema so the warning above can name your typo —
+the two checks cover different failures, and neither hides the other.
+
 ## Safety
 
 - **Never corrupts the surface.** Fold boundaries are balance-safe by the host's own rule; a
@@ -337,7 +352,7 @@ sessions are captured, and both commands recompute them.
 the `Session` class out of the installed app bundle and replays captured logs through it, so the
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 174 logs seed, 65 fold (twice each, to prove a folded session can be
+next request would carry. 196 logs seed, 65 fold (twice each, to prove a folded session can be
 folded again), 30 of those folds come from the pre-flight path before any request failed, and the rest are skipped because the host itself cannot re-seed them in isolation
 (a foreign plugin's message projection, or a pre-v4 log).
 

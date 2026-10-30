@@ -221,6 +221,20 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 以及不低于 `fitRatio` 的 `targetRatio`，都会以 `config:` 开头的 warn 日志报出，而不是悄悄按别的
 值运行。对急救插件来说，"静默忽略拼写错误"和"根本没装"是同一件事。
 
+### 选项是一份真 schema，不是愿望清单
+
+`lib/schema.js` 把下面每个选项声明成 Cordis/Schemastery schema，宿主会因此做两件事：在插件启动
+**之前**校验你的 patch，并在 `dsh --dump-config-schema` 里把这些选项写进文档。schema 拒绝的值
+（`retainRatio: 5`、`mode: aggressive`、`preflight: "yes"`）会让启动直接停下并指出字段与边界，
+而不是带着一个被悄悄夹紧的数字继续跑：
+
+```
+$.retainRatio expected number <= 0.6 but got 5
+```
+
+未知键则被 schema 故意放过，好让上面那条 warn 能点出你拼错的名字——两种检查各自负责不同的错误，
+谁也不替谁兜底。
+
 ## 安全边界
 
 - **绝不损坏投影**：切点按宿主自己的平衡规则计算，会把工具调用和它的结果切开的区间一律不用；
@@ -282,13 +296,13 @@ npm run publish:npm -- --dry-run
 本来就装得下的投影、同一轮内第二次被拒时强制走阶梯、内部异常交还宿主，以及计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
 `DSH_SESSION_LOG` 时自动跳过。`node scripts/dev/scan-sessions.mjs` 会把本机所有会话日志扫一遍，
-每个超标会话都在**零模型调用**下救回来：174 个已捕获会话里有 32 个超过 196,608 窗口，32 个全部
+每个超标会话都在**零模型调用**下救回来：196 个已捕获会话里有 33 个超过 196,608 窗口，33 个全部
 救回，0 失败（见 `docs/PLAN.md` §5）。
 
 `host-session` 是保真度最高的一道闸门，也是上面那两个 bug 的被发现处。它把**装好的 app 里那份**
 `Session` 类加载出来回放真实日志：追加由宿主自己的 `validateSessionEventData` 校验，投影由它的
 `SurfaceManager` 构建，断言对象是 `deriveMessages()` —— 也就是下一次请求真正要发的那串消息。
-174 份日志能播种，65 份完成折叠（每份折两次，证明折过的会话还能再折），其中 30 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
+196 份日志能播种，65 份完成折叠（每份折两次，证明折过的会话还能再折），其中 31 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
 自己也没法重建的（别的插件的事件投影、或 v4 之前的旧格式）。
 
 `boot-check` 再高一层：它真的启动应用。它建五个一次性 profile，其中四个来自出厂 `headless` 模板 ——

@@ -125,7 +125,12 @@ where a proxy owns compression.
 
 ### Configuration
 
-- Options are validated at mount: unknown keys, an unknown `mode`, out-of-range ratios and a
+- Every option is now declared as a Cordis/Schemastery schema (`lib/schema.js`, exported as
+  `Config`). The host validates a profile patch before the plugin starts and documents the options
+  in `--dump-config-schema`, instead of treating them as unknown configuration. An out-of-range
+  value stops the boot with the field and its bound: `$.retainRatio expected number <= 0.6 but got 5`.
+  Unknown keys are still passed through, so the mount-time `config:` warning can name a typo.
+ unknown keys, an unknown `mode`, out-of-range ratios and a
   `targetRatio` that is not below `fitRatio` are logged as `config:` warnings. A plugin that
   silently ignores a typo behaves like a plugin that is not installed.
 
@@ -181,13 +186,13 @@ where a proxy owns compression.
 
 - 82 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
-- A sweep of every session log on the development machine: 174 logs, 32 oversized, 32 rescued,
+- A sweep of every session log on the development machine: 196 logs, 33 oversized, 33 rescued,
   0 failures.
 - The digest is read by a person as well as by a model: tool calls render as what they were for,
   a repeated call collapses to one line plus a count, harness plumbing (runtime snapshots, skill
   catalogues, memory projections, time samples) is never listed as user intent, and a goal restated
   every round appears once.
-- The host's own `Session` class, loaded out of the app bundle, seeds 174 captured logs and folds
+- The host's own `Session` class, loaded out of the app bundle, seeds 196 captured logs and folds
   65 of them in-process (30 of those through the pre-flight path, with no failed request first): every append is validated by the host's `validateSessionEventData`, the
   projection by its `SurfaceManager`, and the derived history never keeps an orphan tool result.
 - The real application boots with the bundle installed: a copy whose `apply()` throws is reported by
