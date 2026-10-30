@@ -36,7 +36,8 @@
     "publish:rehearse": "node scripts/run-host-node.mjs scripts/dev/publish-rehearse.mjs",
     "scan": "node scripts/dev/scan-sessions.mjs",
     "host-session": "node scripts/run-host-node.mjs scripts/dev/host-session-check.mjs",
-    "coexist": "node scripts/run-host-node.mjs scripts/dev/coexist-check.mjs"
+    "coexist": "node scripts/run-host-node.mjs scripts/dev/coexist-check.mjs",
+    "e2e-install": "node scripts/run-host-node.mjs scripts/dev/e2e-install.mjs"
   },
   "dsh": {
     "bundle": {

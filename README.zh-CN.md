@@ -171,6 +171,9 @@ npm run host-session
 # 和宿主的真实压缩引擎（compaction-basic）共存跑一次救援
 npm run coexist
 
+# 用宿主自己的 CLI 装进一个一次性 profile，再删掉
+npm run e2e-install
+
 # 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
 # （同时钉住分支规则：空远端首次推送改成 main，已有 master 的仓库保持 master）
 npm run publish:rehearse

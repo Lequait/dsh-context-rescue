@@ -58,6 +58,9 @@ where a proxy owns compression.
 - The host's own `Session` class, loaded out of the app bundle, seeds 157 captured logs and folds
   65 of them in-process: every append is validated by the host's `validateSessionEventData`, the
   projection by its `SurfaceManager`, and the derived history never keeps an orphan tool result.
+- The app's own CLI (`dsh plugin --profile <name> add <tarball>`) installs the packed tarball into
+  a real profile, which then depends on the plugin and lists its bundle; the host loader resolves
+  the patch from inside that profile (10 assertions, throwaway profile removed).
 - A mount check inside the installed host's own cordis container (23 assertions, including the
   host's real `CommandRuntime`), a package install smoke (16 assertions) and a publish rehearsal
   against a bare remote (18 assertions).

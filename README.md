@@ -181,6 +181,7 @@ node scripts/simulate.js             # three failure scenarios against the real 
 npm run scan                         # fold every oversized session log found on this machine
 npm run host-session                 # the same folds through the host's own Session class
 npm run coexist                      # rescue beside the host's real compaction engine
+npm run e2e-install                  # install through the app's own CLI into a throwaway profile
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
 # the same suite under the app's own Node, where the host validator is reachable
