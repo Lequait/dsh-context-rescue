@@ -237,6 +237,22 @@ asserts what a host would see — the pushed branch, a `market/index.json` that 
 index commit itself), the commit-pinned `git+…#<commit>` install spec, and repository metadata
 written into the pushed `package.json`.
 
+## When it does not rescue
+
+Read the plugin's own state instead of guessing. `context_rescue` with
+`action: "status"`, or `/rescue-status` in the input box, reports
+`measuredTokens`, `window.windowTokens`, `fits`, `foldSupported`, `hostCompaction`,
+`toolResultPruner` and `laneBlocked` for the current session.
+
+| Symptom | What it means | What to do |
+|---|---|---|
+| No `armed: context-overflow rescue active` line at startup | the host skipped the bundle | check `engines.dsh` against the app version, and that the patch file resolved inside the installed package |
+| `fits: true` yet the provider rejects the request | the window estimate is larger than what the gateway enforces | the failure text usually carries the real number; when it does not, set `windowFallback` to the enforced window |
+| `laneBlocked: true` | billion-context refused the host's own compaction on this lane | the plugin stays on the zero-model path; set `zeroModelOnly: true` to make that explicit and stop asking |
+| `foldSupported.ok: false` | this session shape does not expose `append`/`surface.nodes`/`eventAt` | a host version mismatch — the plugin refuses to rewrite a projection it cannot re-read |
+| `hostCompaction: absent` | no compaction engine is mounted | harmless: tier 2 is skipped and the zero-model ladder still runs |
+| the rescue ran but the request still fails | the payload is still larger than the window | lower `retainRatio`/`retainMaxTokens`, or start a new turn and let the checkpoint carry the gist |
+
 ## Limits
 
 - It rescues once the request has failed. If you would rather never see the failure, combine it

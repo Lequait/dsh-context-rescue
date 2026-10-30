@@ -202,6 +202,21 @@ tarball 被当作依赖装进一次性项目，`evaluatePluginCompatibility` 断
 条目 pin 住的 commit 确实是"带代码的那个"而不是索引 commit 自己、commit 钉死的
 `git+…#<commit>` 安装 spec，以及写进推送后 `package.json` 的仓库元信息。
 
+## 它没救回来时
+
+不要猜，直接读插件自己的状态：`context_rescue` 的 `action: "status"`，或输入框里的
+`/rescue-status`，会报出当前会话的 `measuredTokens`、`window.windowTokens`、`fits`、
+`foldSupported`、`hostCompaction`、`toolResultPruner` 与 `laneBlocked`。
+
+| 现象 | 含义 | 处理 |
+|---|---|---|
+| 启动时没有 `armed: context-overflow rescue active` 这一行 | 宿主跳过了这个 bundle | 核对 `engines.dsh` 与 app 版本，并确认 patch 文件在安装目录里能解析到 |
+| `fits: true` 但 provider 仍然拒绝 | 窗口估计比网关真正执行的上限大 | 失败文案里通常带着真实数字；没有数字时把 `windowFallback` 设成实际窗口 |
+| `laneBlocked: true` | billion-context 拒绝了宿主自己的压缩 | 插件会留在零模型路径上；可设 `zeroModelOnly: true` 把这点写明，不再尝试借用 |
+| `foldSupported.ok: false` | 这个会话形状没有 `append`/`surface.nodes`/`eventAt` | 宿主版本不匹配 —— 插件拒绝改写自己读不回来的投影 |
+| `hostCompaction: absent` | 没有挂载压缩引擎 | 无害：第二档跳过，零模型阶梯照常跑 |
+| 救过了但请求仍然失败 | 折叠后仍然超窗 | 调低 `retainRatio`/`retainMaxTokens`，或开新的一轮让检查点接住要点 |
+
 ## 局限
 
 - 它在请求失败之后动手。想完全不看到失败，请搭配一款事前预防插件，两者不冲突。
