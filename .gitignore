@@ -4,3 +4,5 @@ node_modules/
 .dsh/
 coverage/
 *.tgz
+# generated per push by scripts/publish-remote.mjs (it must pin the commit it was pushed with)
+market/index.json

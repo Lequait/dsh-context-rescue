@@ -73,7 +73,7 @@ function hostValidator() {
 async function main() {
   const repoArg = argOf('repo', undefined);
   const dryRun = argOf('dry-run', false) === true;
-  const branch = argOf('branch', git(['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }) ?? 'main');
+  let branch = argOf('branch', git(['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }) ?? 'main');
   const remote = argOf('remote', 'origin');
 
   if (typeof repoArg !== 'string') {
@@ -90,6 +90,18 @@ async function main() {
   }
   if (branch === 'HEAD') {
     throw new Error('the checkout is on a detached HEAD; check out a branch first');
+  }
+
+  // A brand-new local repository here defaults to 'master'; the published index URL and every
+  // install instruction use 'main', so rename before the first push instead of documenting a
+  // branch nobody expects. Only when nothing has been pushed yet.
+  if (branch === 'master' && git(['remote'], { allowFailure: true }) === '') {
+    if (dryRun) {
+      process.stdout.write('would run   git branch -M main (nothing has been pushed yet)\n');
+    } else {
+      git(['branch', '-M', 'main']);
+    }
+    branch = 'main';
   }
 
   const existing = git(['remote', 'get-url', remote], { allowFailure: true });
@@ -135,7 +147,7 @@ async function main() {
   }
 
   fs.writeFileSync(path.join(ROOT, 'market/index.json'), `${JSON.stringify(doc, undefined, 2)}\n`);
-  git(['add', 'market/index.json']);
+  git(['add', '-f', 'market/index.json']);
   git(['commit', '-m', `chore(market): pin the index entry to ${commit.slice(0, 7)}`]);
   git(['push', remote, branch]);
 
