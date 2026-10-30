@@ -165,6 +165,9 @@ npm run mount-check
 # 真正打包、装进临时项目，再让宿主自己的加载器解析 bundle
 npm run install-smoke
 
+# 用 app 里真实的 Session 类回放本机日志并折叠
+npm run host-session
+
 # 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
 # （同时钉住分支规则：空远端首次推送改成 main，已有 master 的仓库保持 master）
 npm run publish:rehearse
@@ -177,9 +180,14 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 本来就装得下的投影、同一轮内第二次被拒时强制走阶梯、内部异常交还宿主，以及计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
 `DSH_SESSION_LOG` 时自动跳过。`node scripts/dev/scan-sessions.mjs` 会把本机所有会话日志扫一遍，
-每个超标会话都在**零模型调用**下救回来：157 个已捕获会话里有 34 个超过 196,608 窗口，34 个全部
-救回 —— 8,226,127 → 97,309、4,555,770 → 51,377、1,087,491 → 51,257、991,512 → 94,082、
-933,308 → 50,890、497,020 → 51,538，0 失败（见 `docs/PLAN.md` §5）。
+每个超标会话都在**零模型调用**下救回来：157 个已捕获会话里有 31 个超过 196,608 窗口，31 个全部
+救回，0 失败（见 `docs/PLAN.md` §5）。
+
+`host-session` 是保真度最高的一道闸门，也是上面那两个 bug 的被发现处。它把**装好的 app 里那份**
+`Session` 类加载出来回放真实日志：追加由宿主自己的 `validateSessionEventData` 校验，投影由它的
+`SurfaceManager` 构建，断言对象是 `deriveMessages()` —— 也就是下一次请求真正要发的那串消息。
+157 份日志能播种，65 份完成折叠（每份折两次，证明折过的会话还能再折），其余是宿主在孤立进程里
+自己也没法重建的（别的插件的事件投影、或 v4 之前的旧格式）。
 
 `mount-check` 是集成闸门：它把插件装进**本机已安装 app** 自带的 cordis 4 容器，因此验证的是
 真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`

@@ -16,14 +16,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 /** Message event types that become surface nodes on their own. */
-const MESSAGE_TYPES = new Set([
-  'system/message',
-  'user/message',
-  'assistant/message',
-  'tool/result',
-  'tool/call',
-  'tool/ptc-dispatch',
-]);
+const MESSAGE_TYPES = new Set(['system/message', 'user/message', 'assistant/message', 'developer/message', 'tool/result']);
 
 /** Expand `~` so an env var can be written the way a shell user expects. */
 export function expandHome(path) {

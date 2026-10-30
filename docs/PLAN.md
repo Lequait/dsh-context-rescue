@@ -176,6 +176,8 @@ What no local gate can supply is the account: no hosted repository, no npm login
 | Installed package | `npm pack` output installs as a dependency and the host bundle loader resolves `cordis.patch.yml` from the installed path | verified by `scripts/dev/install-smoke.mjs` |
 | Type contract | every exported signature and internal shape in `index.js` + `lib/` type-checks under `--checkJs` | `npm run typecheck` → 0 errors over 12 files (`tsconfig.json`) |
 | Publish flow | cloning this checkout, pushing into a bare remote, and pinning the index entry produce a host-accepted entry that points at the code commit | verified by `scripts/dev/publish-rehearse.mjs` (18 assertions, no account needed) |
+| Host Session class | the fold is accepted by the host's own `Session`: appends pass `validateSessionEventData`, the projection is rebuilt by `SurfaceManager`, `deriveMessages()` keeps no orphan tool result, and the bracket closes | verified by `scripts/dev/host-session-check.mjs`: 157 logs seeded, 65 folded twice, 0 failed |
+| Real event shapes | surface membership matches `isSurfaceEligibleType` (`tool/call` and `tool/ptc-dispatch` are not surface nodes), and events are read through `snapshotEvents()` because the host `Session` has no `.events` | both properties pinned by the host-session gate above |
 
 ## 5. Real-log evidence
 
@@ -227,7 +229,9 @@ declared one, the ladder reaches the zero-model tier, the projection ends up und
 are balance-safe, the transaction bracket closes, and the replacement carries
 `source.kind === 'compact-checkpoint'`. 34 of 157 captured logs on this machine are oversized; all 34 are rescued and none fail. Logs that are empty or already
 fit are skipped rather than failed — the sweep (`node scripts/dev/scan-sessions.mjs`) reports
-`157 logs · 34 rescued · 0 failed`.
+`157 logs · 31 rescued · 0 failed`. The count fell from 34 to 31 when the surface
+became exact: `tool/call` and `tool/ptc-dispatch` are event types that the host never puts on a
+surface, so three logs that only looked oversized were already inside the window.
 
 ## 6. Known limits
 

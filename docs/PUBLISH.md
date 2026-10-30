@@ -11,7 +11,8 @@ Everything that can be built without credentials is already done and green:
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 23 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
-| Sweep of every captured session log | `npm run scan` | 157 logs, 34 oversized, 34 rescued, 0 failed |
+| Sweep of every captured session log | `npm run scan` | 157 logs, 31 oversized, 31 rescued, 0 failed |
+| The host's own `Session` class (from the app bundle) | `npm run host-session` | 157 logs seeded, 65 folded, 92 unseedable/skipped, 0 failed |
 | Market index entry | `npm run market -- --repo-slug OWNER/dsh-context-rescue` | validated by the host |
 
 What remains needs an authenticated remote: nothing in the list above can create or write to a

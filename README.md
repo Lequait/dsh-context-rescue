@@ -179,6 +179,7 @@ node --test                          # unit + replay
 npm run typecheck                    # JSDoc type contract over index.js and lib/
 node scripts/simulate.js             # three failure scenarios against the real code
 npm run scan                         # fold every oversized session log found on this machine
+npm run host-session                 # the same folds through the host's own Session class
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
 # the same suite under the app's own Node, where the host validator is reachable
@@ -204,10 +205,17 @@ rejection that forces the ladder, an internal throw that is handed back to the h
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
-sweeps every log on this machine and folds each oversized one with zero model calls: 34 of 157
-captured sessions exceed a 196,608-token window and all 34 are rescued — 8,226,127 → 97,309,
-4,555,770 → 51,377, 1,087,491 → 51,257, 991,512 → 94,082, 933,308 → 50,890, 497,020 → 51,538 —
-with no failure (`docs/PLAN.md` §5).
+sweeps every log on this machine and folds each oversized one with zero model calls: 31 of 157
+captured sessions exceed a 196,608-token window and all 31 are rescued, with no failure
+(`docs/PLAN.md` §5).
+
+`host-session` is the highest-fidelity gate and the reason the two bugs above were found. It loads
+the `Session` class out of the installed app bundle and replays captured logs through it, so the
+appends are validated by the host's `validateSessionEventData`, the projection is built by its
+`SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
+next request would carry. 157 logs seed, 65 fold (twice each, to prove a folded session can be
+folded again), and the rest are skipped because the host itself cannot re-seed them in isolation
+(a foreign plugin's message projection, or a pre-v4 log).
 
 `mount-check` is the integration gate: it loads the plugin into the **installed app's** cordis
 4 container, so it exercises the real `inject`/`Service` wiring and the real

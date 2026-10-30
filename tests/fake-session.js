@@ -10,7 +10,7 @@
 
 import { estimateTokensFromText, contentBlocksToRawText } from '../lib/util.js';
 
-const MESSAGE_TYPES = new Set(['system/message', 'user/message', 'assistant/message', 'developer/message', 'tool/result', 'tool/call', 'tool/ptc-dispatch']);
+const MESSAGE_TYPES = new Set(['system/message', 'user/message', 'assistant/message', 'developer/message', 'tool/result']);
 
 export class FakeSession {
   constructor(options = {}) {

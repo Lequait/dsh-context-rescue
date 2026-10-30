@@ -34,7 +34,8 @@
     "install-smoke": "node scripts/run-host-node.mjs scripts/dev/install-smoke.mjs",
     "publish:remote": "node scripts/publish-remote.mjs",
     "publish:rehearse": "node scripts/run-host-node.mjs scripts/dev/publish-rehearse.mjs",
-    "scan": "node scripts/dev/scan-sessions.mjs"
+    "scan": "node scripts/dev/scan-sessions.mjs",
+    "host-session": "node scripts/run-host-node.mjs scripts/dev/host-session-check.mjs"
   },
   "dsh": {
     "bundle": {

@@ -65,7 +65,7 @@ export function loadSessionLog(path) {
 }
 
 /** The surface the host reconstructs from a log, in surface order. */
-const MESSAGE_TYPES = new Set(['system/message', 'user/message', 'assistant/message', 'developer/message', 'tool/result', 'tool/call', 'tool/ptc-dispatch']);
+const MESSAGE_TYPES = new Set(['system/message', 'user/message', 'assistant/message', 'developer/message', 'tool/result']);
 
 /**
  * @param {any[]} events
