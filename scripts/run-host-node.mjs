@@ -14,13 +14,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-const CANDIDATES = [
-  process.env.DSH_APP_EXE,
-  'C:/Users/Vashiya/AppData/Local/Programs/DSH NEXT/DSH NEXT.exe',
-  path.join(process.env.LOCALAPPDATA ?? '', 'Programs/DSH NEXT/DSH NEXT.exe'),
-  path.join(process.env.PROGRAMFILES ?? '', 'DSH NEXT/DSH NEXT.exe'),
-  '/Applications/DSH NEXT.app/Contents/MacOS/DSH NEXT',
-].filter((candidate) => typeof candidate === 'string' && candidate !== '');
+import { dshAppExeCandidates } from './host-paths.mjs';
+
+const CANDIDATES = dshAppExeCandidates();
 
 const exe = CANDIDATES.find((candidate) => fs.existsSync(candidate));
 if (exe === undefined) {

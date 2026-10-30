@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { buildMarketIndexDoc, checkMarketIndexDoc } from '../lib/market-index.js';
+import { dshAsarCandidates } from '../scripts/host-paths.mjs';
 
 const ICON = fs.readFileSync(path.join(import.meta.dirname, '../market/icon.svg'), 'utf8');
 const COMMIT = 'd147a9e8b12c339f6c6ebb1408c39b7f81f2343f';
@@ -64,9 +65,11 @@ test('the checker rejects a short commit, a bad name, and a missing en', () => {
 
 /** The host validator is the authority; run it when an installed DSH can be found. */
 test('the host parseMarketIndex accepts the document', async (t) => {
-  const asar =
-    process.env.DSH_APP_ASAR ??
-    'C:/Users/Vashiya/AppData/Local/Programs/DSH NEXT/resources/app.asar';
+  const asar = dshAsarCandidates().find((candidate) => fs.existsSync(candidate));
+  if (asar === undefined) {
+    t.skip('no installed DSH app found');
+    return;
+  }
   const lib = path.join(asar, 'node_modules/@deepseek-ai/dsh-plugin-market-index/lib/index.js');
   if (!fs.existsSync(lib)) {
     t.skip(`no installed host validator at ${lib}`);

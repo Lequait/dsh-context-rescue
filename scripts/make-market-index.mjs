@@ -20,7 +20,7 @@ import { execFileSync } from 'node:child_process';
 import { buildMarketIndexDoc, checkMarketIndexDoc } from '../lib/market-index.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const ASAR_DEFAULT = 'C:/Users/Vashiya/AppData/Local/Programs/DSH NEXT/resources/app.asar';
+import { dshAsarCandidates } from './host-paths.mjs';
 
 function argOf(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -31,7 +31,10 @@ function argOf(name, fallback) {
 
 /** The host package's absolute entry, so no bare specifier has to resolve. */
 function marketIndexLib() {
-  const asar = process.env.DSH_APP_ASAR || ASAR_DEFAULT;
+  const asar = dshAsarCandidates().find((candidate) => fs.existsSync(candidate));
+  if (asar === undefined) {
+    throw new Error('Cannot find an installed DSH; set DSH_APP_ASAR to its app.asar.');
+  }
   const file = path.join(asar, 'node_modules/@deepseek-ai/dsh-plugin-market-index/lib/index.js');
   if (!fs.existsSync(file)) {
     throw new Error(

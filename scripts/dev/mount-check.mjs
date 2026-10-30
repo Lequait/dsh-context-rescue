@@ -13,13 +13,17 @@
  * @module dsh-context-rescue/scripts/dev/mount-check
  */
 
+import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 
 import { FakeSession, fakeMeter, seedConversation } from '../../tests/fake-session.js';
 import { measure } from '../../lib/measure.js';
 
-const ASAR = process.env.DSH_ASAR ?? 'C:/Users/Vashiya/AppData/Local/Programs/DSH NEXT/resources/app.asar';
+import { dshAsarCandidates } from '../host-paths.mjs';
+
+const ASAR = dshAsarCandidates().find((candidate) => existsSync(candidate));
+if (ASAR === undefined) throw new Error('Cannot find an installed DSH; set DSH_APP_ASAR.');
 const cordisEntry = join(ASAR, 'node_modules/@deepseek-ai/cordis/lib/index.js');
 
 const failures = [];
