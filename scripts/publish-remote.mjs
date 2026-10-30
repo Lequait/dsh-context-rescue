@@ -32,13 +32,16 @@ function argOf(name, fallback) {
   return value === undefined || value.startsWith('--') ? true : value;
 }
 
+/** Mask a token embedded in a URL before printing a command. */
+const redact = (value) => String(value).replace(/\/\/[^/@]+@/u, '//***@');
+
 function git(args, { allowFailure = false } = {}) {
   try {
     return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   } catch (error) {
     if (allowFailure) return undefined;
     const stderr = String(error.stderr ?? error.message).trim();
-    throw new Error(`git ${args.join(' ')} failed:\n${stderr}`);
+    throw new Error(`git ${args.map(redact).join(' ')} failed:\n${stderr}`);
   }
 }
 
@@ -123,7 +126,7 @@ async function main() {
 
   process.stdout.write(`repository  ${repo.https}\nremote      ${remote} (${existing ?? 'new'})\nbranch      ${branch}\n`);
   if (dryRun) {
-    for (const args of plan) process.stdout.write(`would run   git ${args.join(' ')}\n`);
+    for (const args of plan) process.stdout.write(`would run   git ${args.map(redact).join(' ')}\n`);
     process.stdout.write(`then        regenerate market/index.json against the pushed commit and push it\n`);
     return;
   }
