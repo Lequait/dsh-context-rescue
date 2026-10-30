@@ -101,6 +101,16 @@ pick the entry          dsh-context-rescue — it installs the commit the entry 
 The repository also carries the `dsh-plugin` topic so topic-scanning lists pick it up, and the
 entry has been submitted to two curated lists (`docs/PUBLISH.md` records the PRs).
 
+## When nothing can work
+
+Some sessions cannot be rescued: the system prompt alone can already be over the
+window. The plugin tries every tier once, then remembers the session as
+defeated and stops measuring it -- otherwise every single request in that
+session would pay a full measurement and fail the same way. The step still
+runs, the request is still attempted, and the failure is passed through
+unchanged. `/rescue` (or `context_rescue` with `action: "rescue"`) always tries
+once more, and any rescue that does work reopens the normal path.
+
 ## What the checkpoint keeps
 
 The digest is written without a model, so it keeps *facts*, not prose: errors and failures,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { FakeSession, fakeContext, fakeLlm, fakeMeter, seedConversation } from './fake-session.js';
 import { resolveConfig } from '../lib/config.js';
-import { describeSession, mechanicalFold, rescue, rescueStateOf } from '../lib/rescue.js';
+import { describeSession, mechanicalFold, preflight, rescue, rescueStateOf } from '../lib/rescue.js';
 import { measure } from '../lib/measure.js';
 import { hasOpenCompactionTransaction } from '../lib/plan.js';
 import { apply } from '../index.js';
@@ -316,4 +316,78 @@ test('a session whose first message alone overflows is rescued, and the digest s
   assert.ok(report.after.totalTokens < before);
   assert.match(reportText(session), /这次折叠包含了会话最开始的那条消息/);
   assert.equal(hasOpenCompactionTransaction(session.events), false);
+});
+
+function countingMeter() {
+  const inner = fakeMeter();
+  const meter = {
+    calls: 0,
+    measure(session) {
+      meter.calls += 1;
+      return inner.measure(session);
+    },
+    estimateMessage: inner.estimateMessage,
+  };
+  return meter;
+}
+
+/** A session nothing can rescue: the system prompt alone is over the window. */
+function hopelessSession() {
+  const session = new FakeSession();
+  session.append('system/message', { message: { content: [{ type: 'text', text: '系'.repeat(400000) }] } });
+  session.append('user/message', { message: { content: [{ type: 'text', text: '继续' }] } });
+  session.append('assistant/message', { message: { content: [{ type: 'text', text: '好的。' }] } });
+  return session;
+}
+
+test('a session that already defeated every tier is not measured again', async () => {
+  const session = hopelessSession();
+  const meter = countingMeter();
+  const ctx = fakeContext({ llm: fakeLlm(60000), tokenMeter: meter });
+  const config = resolveConfig({});
+  const agent = { session };
+
+  const first = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 1 });
+  assert.equal(first.action, 'pass');
+  assert.match(first.reason, /no tier could shrink/u);
+  assert.equal(rescueStateOf(agent).hopeless, true, 'a defeated session is remembered');
+  const callsAfterFirst = meter.calls;
+  assert.ok(callsAfterFirst >= 1);
+
+  const second = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 2 });
+  assert.equal(second.action, 'pass');
+  assert.match(second.reason, /not measured again/u);
+  assert.equal(meter.calls, callsAfterFirst, 'the second request must not measure the projection again');
+
+  const forced = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 3, force: true });
+  assert.equal(forced.action, 'pass');
+  assert.ok(meter.calls > callsAfterFirst, 'an explicit /rescue measures once more');
+});
+
+test('a successful fold clears the flag', async () => {
+  const session = sessionWithLongHistory();
+  const ctx = fakeContext({ llm: fakeLlm(60000) });
+  const config = resolveConfig({});
+  const agent = { session };
+  rescueStateOf(agent).hopeless = true;
+
+  const report = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 4, force: true });
+
+  assert.equal(report.action, 'retry');
+  assert.equal(rescueStateOf(agent).hopeless, false, 'a rescue that worked reopens the fast path');
+});
+
+test('pre-flight leaves a defeated session alone', async () => {
+  const session = hopelessSession();
+  const meter = countingMeter();
+  const ctx = fakeContext({ llm: fakeLlm(60000), tokenMeter: meter });
+  const config = resolveConfig({});
+  const agent = { session };
+  rescueStateOf(agent).hopeless = true;
+
+  const report = await preflight(ctx, { agent, session, config, turn: 5 });
+
+  assert.equal(report.action, 'pass');
+  assert.match(report.reason, /defeated every tier/u);
+  assert.equal(meter.calls, 0, 'a defeated session is not measured on every step');
 });

@@ -7,6 +7,13 @@ compaction uses, and turns a context-window rejection into a rewritten projectio
 attempt can send. It never needs the model to summarise anything, so it keeps working on a lane
 where a proxy owns compression.
 
+### Rescue
+- **A defeated session is not measured twice.** If every tier fails for a session
+  (a system prompt alone can be over the window), the plugin remembers that and
+  stops re-measuring it on each request, so the failure costs one attempt instead
+  of one full measurement per request. `/rescue` still forces another try, and a
+  rescue that works reopens the normal path.
+
 ### Fixed while validating against the host's own session class
 
 - The planner read `session.events`, which the host's own `Session` does not expose. On a real
