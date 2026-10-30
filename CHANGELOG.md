@@ -12,6 +12,11 @@
   entry onto one of its own config defs, the def lists the knobs, a bad patch fails the boot, a good
   patch boots past configuration).
 
+### CI
+- Every job installs the dependency tree now. The schema library is a runtime dependency, and the
+  workflow used to install only for the type-check job, so four of six jobs failed to resolve it
+  while the two that installed looked green.
+
 ### Evidence refreshed
 - Session-log counts re-measured on the development machine: 196 logs, 33 oversized, 33 rescued,
   0 failed; the host's own `Session` class seeds 196, folds 65 (31 of them pre-flight), 0 failed.
