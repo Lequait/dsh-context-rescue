@@ -206,8 +206,8 @@ their shape and their pointers.
 | Tool | Purpose |
 |---|---|
 | `context_rescue` | `action: "status"` reports occupancy, capabilities and the last rescue; `action: "rescue"` runs the ladder now and folds without waiting for a failure |
-| `context_rescue_estimate` | price the current surface against a declared or observed window |
-| `context_rescue_fold` | fold a specific span (`start` / `end` seq) with the same safety checks |
+| `context_rescue_estimate` | classify a pasted error text (optional `text`) and show the sizes it extracts, plus this session's occupancy |
+| `context_rescue_fold` | fold the oldest history span right now — no parameters, the same mechanical fold `/rescue` runs — and report the token delta |
 
 Tools never throw; they return a report object with `ok`, `reason` and counters.
 
@@ -236,7 +236,8 @@ All keys are optional; pass them through the plugin's config block.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `mode` | `"auto"` | `auto` rescues, `diagnose` only reports, `fold` folds without a tier ladder |
+| `enabled` | `true` | mount the plugin at all; `false` leaves the harness untouched |
+| `mode` | `"auto"` | `auto` runs the full ladder (prune → host engine → mechanical fold → excerpt); `fold` runs the same ladder without the host compaction engine, so it never asks a model to summarise; `diagnose` detects and reports but rewrites nothing |
 | `zeroModelOnly` | `false` | never call the model/compactor; go straight to the mechanical fold |
 | `trimOversizedMessages` | `true` | when one message alone overflows, replace it with its own head and tail |
 | `excerptChars` | `3000` | characters kept from each end when that happens |
@@ -306,7 +307,7 @@ the two checks cover different failures, and neither hides the other.
 ```bash
 node --test                          # unit + replay
 npm run typecheck                    # JSDoc type contract over index.js and lib/
-node scripts/simulate.js             # three failure scenarios against the real code
+node scripts/simulate.js             # four failure scenarios against the real code
 npm run scan                         # fold every oversized session log found on this machine
 npm run host-session                 # the same folds through the host's own Session class
 npm run coexist                      # rescue beside the host's real compaction engine
@@ -343,18 +344,20 @@ rejection that forces the ladder, an internal throw that is handed back to the h
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
-sweeps every log on this machine and folds each oversized one with zero model calls: 32 of 162
-captured sessions exceed a 196,608-token window and all 32 are rescued, with no failure
+sweeps every log on this machine and folds each oversized one with zero model calls: 33 of 200
+captured sessions exceed a 196,608-token window and all 33 are rescued, with no failure
 (`docs/PLAN.md` §5). The counts here are a snapshot of this machine: they grow as
-sessions are captured, and both commands recompute them.
+sessions are captured, and `scan` and `host-session` recompute them, so the numbers below are
+that same snapshot rather than fixed constants.
 
 `host-session` is the highest-fidelity gate and the reason the two bugs above were found. It loads
 the `Session` class out of the installed app bundle and replays captured logs through it, so the
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 196 logs seed, 65 fold (twice each, to prove a folded session can be
-folded again), 30 of those folds come from the pre-flight path before any request failed, and the rest are skipped because the host itself cannot re-seed them in isolation
-(a foreign plugin's message projection, or a pre-v4 log).
+next request would carry. 200 logs seed, 69 fold (twice each, to prove a folded session can be
+folded again), 31 of those folds come from the pre-flight path before any request failed, and the
+rest are skipped because the host itself cannot re-seed them in isolation (a foreign plugin's
+message projection, or a pre-v4 log).
 
 `boot-check` goes one level higher: it boots the application. It builds five throwaway profiles, four of
 them from the shipped `headless` template — first a copy of this package whose `apply()` throws, and asserts
@@ -370,8 +373,7 @@ the shape the desktop app composes, and the assertion there is that the entry la
 as `@deepseek-ai/dsh-client-ui-commands` — the bundle that renders the command surface a user sees.
 That profile is then started for real: the host must print its URL, hand the printed URL's auth
 cookie to a request, and serve the UI document. A bundle that breaks the GUI host never gets that far.
-service is a composition question no unit test can answer. All four profiles are removed afterwards.
-It proves mounting, not inference.
+All five profiles are removed afterwards. It proves mounting, not inference.
 
 `coexist` mounts the plugin beside the host's *real* compaction engine
 (`@deepseek-ai/dsh-compaction-basic`, the one a stock profile puts in the slot) with a fake `llm`

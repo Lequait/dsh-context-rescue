@@ -6,7 +6,7 @@ Everything that can be built without credentials is already done and green:
 |---|---|---|
 | Unit + fold + rescue + repair + trim + tools + commands + schema + market rules | `npm test` | 115 tests, 112 pass, 3 skipped (host-only) |
 | Same suite under the app's own Node | `npm run test:host` | 115 tests, 113 pass, 2 skipped |
-| JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 12 files |
+| JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 14 files |
 | Four failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 25 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
@@ -24,6 +24,10 @@ Everything that can be built without credentials is already done and green:
 
 What remains needs an authenticated remote: nothing in the list above can create or write to a
 hosted repository on its own.
+
+The log-derived counts (`196 logs`, `33 rescued`, `65 folds`, `131 skipped`) and the bench
+timings below are a snapshot of this development machine: they move as sessions are captured, and
+`scan`, `host-session` and `rescue-bench` recompute them.
 
 ## 1. Create the repository
 
@@ -63,8 +67,9 @@ enough — no token ever has to be typed. SSH needs a key (`ssh-keygen -t ed2551
 
 - Repository topic: `dsh-plugin` (this is the topic the ecosystem's listings scan for).
 - `publish:remote` already regenerated and pushed `market/index.json`; regenerate it by hand only
-  when you want a listing to point at a newer build (`market/index.json` is git-ignored in a fresh
-  checkout because it must pin a commit that exists):
+  when you want a listing to point at a newer build. The file is committed, so a fresh checkout
+  already contains it; `.gitignore` lists it only because `publish:remote` rewrites it on every
+  push, and the committed copy must always pin a commit that exists:
 
   ```bash
   npm run market -- --repo-slug OWNER/dsh-context-rescue --out market/index.json
@@ -162,6 +167,7 @@ the install smoke and the publish rehearsal first, refuses a tag that disagrees 
 git tag v0.2.1 && git push origin v0.2.1   # needs the NPM_TOKEN repository secret
 ```
 
-The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/`, `docs/`, both READMEs and
-the license; `publishConfig.access` is already `public`. After publishing, `--npm` in the market
+The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/icon.svg`, `docs/`, both
+READMEs, `CHANGELOG.md` and the license — the tarball carries only the icon from `market/`, since
+`market/index.json` is served from the repository; `publishConfig.access` is already `public`. After publishing, `--npm` in the market
 generator switches the listed source from a pinned commit to `dsh-context-rescue@<version>`.

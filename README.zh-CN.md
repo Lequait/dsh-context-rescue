@@ -168,8 +168,8 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 | 工具 | 用途 |
 |---|---|
 | `context_rescue` | `action: "status"` 报告占用、能力与上次急救；`action: "rescue"` 立刻走一遍阶梯、不等失败 |
-| `context_rescue_estimate` | 按声明或实际观测的窗口估算当前投影占用 |
-| `context_rescue_fold` | 折叠指定区间（`start` / `end` seq），同样做安全校验 |
+| `context_rescue_estimate` | 分类一段贴进来的报错文本（可选参数 `text`），给出从中提取的尺寸，外加本会话的占用情况 |
+| `context_rescue_fold` | 立刻折叠最旧的一段历史（没有参数，与 `/rescue` 走同一个机械折叠），并报告 token 变化 |
 
 工具不抛异常，统一返回带 `ok`、`reason` 和计数的报告对象。
 
@@ -193,7 +193,8 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 
 | 键 | 默认 | 含义 |
 |---|---|---|
-| `mode` | `"auto"` | `auto` 急救；`diagnose` 只报告不改写；`fold` 直接机械折叠 |
+| `enabled` | `true` | 是否挂载插件；`false` 时完全不碰宿主 |
+| `mode` | `"auto"` | `auto` 走完整阶梯（剪枝 → 宿主引擎 → 机械折叠 → 摘录）；`fold` 走同一条阶梯但不问宿主压缩引擎，因此永远不会让模型来总结；`diagnose` 只检测和报告，不改写任何东西 |
 | `zeroModelOnly` | `false` | 永不调用模型/压缩引擎，直接走机械折叠 |
 | `trimOversizedMessages` | `true` | 单条消息自己就装不下时，用它的开头+结尾替换它 |
 | `excerptChars` | `3000` | 替换时首尾各保留多少字符 |
@@ -255,7 +256,7 @@ $.retainRatio expected number <= 0.6 but got 5
 ```bash
 node --test                          # 单测 + 回放
 npm run typecheck                    # 用 JSDoc 给 index.js 与 lib/ 做类型检查
-node scripts/simulate.js             # 三个失效场景跑真实插件代码
+node scripts/simulate.js             # 四个失效场景跑真实插件代码
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
 # 同一套测试改用 app 自己的 Node 跑，那里才读得到 app.asar 里的宿主校验器
@@ -277,8 +278,9 @@ npm run coexist
 npm run e2e-install
 # 同上，但装的是已发布的 git spec（真实网络路径）
 npm run e2e-install -- --git
+# 真的启动应用：apply() 被执行吗，且能否与占用压缩车道的插件同一个 profile 共存
+npm run boot-check
 # 拉线上市场索引，交给宿主解析，再装它给出的 spec（Discover 页走的同一条路）
-npm run boot-check                   # 真的启动应用：apply() 被执行吗，且能否与占用压缩车道的插件同一个 profile 共存
 npm run market-install
 
 # 用临时克隆 + 本地裸仓库把整条发布流程排练一遍

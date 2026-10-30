@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.2.2 — 2026-10-31
+
+Six defects found by a read-only review of the runtime code, five of them ways the plugin could
+look like it worked while doing nothing, or do something irreversible for the wrong reason.
+
+### Fixed
+- **A "nothing can help" verdict is now tied to the history it was reached on.** The verdict was
+  keyed to the window only, so a session that failed because the foldable span was under
+  `minFoldTokens`, or because an oversized node sat at an unbalanced cut, stayed written off after
+  the user had typed enough for either condition to stop being true. The guard now compares the
+  surface (last seq and node count) and measures again when it moved. Window changes still drop
+  the verdict, as before.
+- **`maxAttemptsPerTurn: 1` no longer disables the ladder.** The "the projection already fits, retry
+  unchanged" shortcut consumed the only attempt the turn had, so the host re-sent the same body,
+  the second failure hit the budget, and no tier ever ran. The shortcut is now skipped when the
+  budget is one.
+- **`mode: 'fold'` means something.** The ladder guard tested `config.mode !== 'prune'`, and `prune`
+  is not an accepted mode, so `fold` behaved exactly like `auto`. `fold` now skips the host
+  compaction engine — the one tier that may ask a model to summarise — and keeps the zero-model
+  tiers, which is what the name promised.
+- **A bracket that never opened is no longer closed.** `compaction/start` was appended inside the
+  try whose catch appends `compaction/end`; if the start itself failed, the log ended with a
+  terminal marker for a compaction that never began. The start moved outside the try.
+- **`context_rescue` reports `ok: false` when it folded nothing.** A session that already fit came
+  back as `{ok: true, action: 'retry'}` with an unchanged projection, which reads to a model as
+  "context was freed". The result now carries `attempted` and `ok` requires it.
+- **Weak overflow signals no longer decide alone.** Three weak probes ("413", "invalid request", a
+  byte figure) used to reach the threshold on their own, so a gateway error body that merely echoed
+  the request's own numbers could trigger an irreversible fold — and, on the retry, a second one.
+  A strong wording, a user-supplied `extraPatterns` match, or a strong-ish wording next to real
+  numbers is now required.
+- A fold now refuses to append if the surface moved between planning and writing (`expectedSeq`),
+  so a future refactor that introduces an `await` there fails loudly instead of writing a replace
+  for seqs the surface no longer has.
+
+### Verification
+- 122 unit tests (119 pass, 3 skipped, 0 fail), 122 under the host's Node (120 pass), type check
+  clean, four simulated failure scenarios, and the two real-log sweeps at 200 logs: 69 folded under
+  the host's own `Session` class (31 of them pre-flight) and 33 rescued by the full ladder, 0
+  failures in both.
+
 ## 0.2.1 — 2026-10-31
 
 ### Config schema
@@ -150,10 +191,10 @@ where a proxy owns compression.
   `Config`). The host validates a profile patch before the plugin starts and documents the options
   in `--dump-config-schema`, instead of treating them as unknown configuration. An out-of-range
   value stops the boot with the field and its bound: `$.retainRatio expected number <= 0.6 but got 5`.
-  Unknown keys are still passed through, so the mount-time `config:` warning can name a typo.
- unknown keys, an unknown `mode`, out-of-range ratios and a
-  `targetRatio` that is not below `fitRatio` are logged as `config:` warnings. A plugin that
-  silently ignores a typo behaves like a plugin that is not installed.
+  Unknown keys are still passed through, so the mount-time `config:` warning can name a typo;
+  an unknown `mode`, out-of-range ratios and a `targetRatio` that is not below `fitRatio` are
+  logged the same way. A plugin that silently ignores a typo behaves like a plugin that is not
+  installed.
 
 ### Rescue
 
@@ -166,9 +207,10 @@ where a proxy owns compression.
   matches, and a scoring rule where numbers alone never trigger a rewrite.
 - The window is the smaller of the declared context window and the number quoted in the failure
   text, so a gateway that enforces less than the model advertises is handled instead of ignored.
-- A three-tier ladder, each tier tried only if the previous one did not produce a projection that
+- A four-tier ladder, each tier tried only if the previous one did not produce a projection that
   fits: tool-result pruning → the host's own compaction engine (borrowed, never taken) → a
-  mechanical digest fold written with the host's `compaction/prune` protocol.
+  mechanical digest fold written with the host's `compaction/prune` protocol → the head-and-tail
+  excerpt of a single message that folding around it would otherwise leave behind.
 - Fold boundaries are always tool-call/tool-result pairs, computed with the host's own balance
   rule (only `assistant/message` tool-call blocks push the counter, only `tool/result` pops it).
 - A projection that already fits is retried untouched; a second rejection in the same turn forces
@@ -205,7 +247,7 @@ where a proxy owns compression.
 
 ### Verification
 
-- 82 unit tests, including a replay of a real captured session log and of the exact wording from
+- 107 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
 - A sweep of every session log on the development machine: 196 logs, 33 oversized, 33 rescued,
   0 failures.

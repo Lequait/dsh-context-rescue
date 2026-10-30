@@ -1,6 +1,8 @@
 # Work plan — dsh-context-rescue
 
-Status: **implementation complete, verification in progress.** This file is the plan the
+Status: **implementation complete, verification green.** Every gate below carries a `→ **passed**`
+line; what is still open is external to the code — the npm and curated-list steps in
+`docs/PUBLISH.md`. This file is the plan the
 code is measured against; every phase carries its evidence inline so a reviewer can check
 the claim instead of trusting the summary.
 
@@ -58,7 +60,7 @@ Gate: all six mechanisms confirmed in shipped type declarations and source → *
 
 - strong probes (gateway prose, `model's context window`, `no upstream can accept`,
   budget-vs-window arithmetic) — any single hit is enough;
-- structured codes (`CONTEXT_WINDOW_EXCEEDED` and eight related codes);
+- structured codes (`CONTEXT_WINDOW_EXCEEDED` and nine related codes);
 - numeric extraction (request tokens, window tokens, payload bytes) so the rescue can size
   the target against the window the failure *observed*, not the one the adapter declared;
 - user-supplied `extraPatterns`, which extend detection without ever disabling the built-ins.
@@ -122,16 +124,17 @@ and end-to-end through the host's own `CommandRuntime` (`/rescue-status` then `/
 
 ### Phase F — Simulation and replay (done)
 
-- `scripts/simulate.js` replays three scenarios against the real plugin code: (1) the #10138
+- `scripts/simulate.js` replays four scenarios against the real plugin code: (1) the #10138
   chain, (2) a proxy lane refusal, (3) an un-foldable single mega-message that must be
-  delegated. A bug found here — the measurement path used the digest's 2000-char clamp, so a
+  delegated, (4) a corrupt surface (an orphaned tool call/result) that must be handed back to
+  the host untouched. A bug found here — the measurement path used the digest's 2000-char clamp, so a
   480k-char message priced at 1,992 tokens — was fixed by splitting raw from rendered text.
 - `tests/replay-real-log.test.js` drives the whole ladder against a log captured from a real
   session: the unclassified failure wording in, a smaller projection plus a retry request out,
   with the host invariants re-checked on the rewritten surface.
 
-Gate: three simulation scenarios green; every oversized real log on this machine rescued with
-zero model calls (14 sessions, §5), 44-log sweep with 0 failures → **passed**.
+Gate: four simulation scenarios green; every oversized real log on this machine rescued with
+zero model calls (§5), 44-log sweep with 0 failures → **passed**.
 
 ### Phase G — Release
 
@@ -188,22 +191,22 @@ and publish rehearsal first, then a tag/version equality guard, then `--provenan
 | Surface write protocol | replacement is a `user/message` with `surfaceOp: replace` between `compaction/start` and `compaction/end` | verified in host source + replay |
 | Tool pairing | fold boundaries sit on balance-safe cuts, per the host's own rule | verified on 4 real logs (956→169, 2232→507, 482→183, 382→165 nodes) |
 | Zero-model path | works with `llm.stream` unavailable/refused | verified in simulation and tests |
-| No host imports | plugin imports no `@deepseek-ai/*` at runtime | verified by `grep` in CI-style script + package `files` |
+| No host imports | plugin imports no `@deepseek-ai/*` at runtime | verified by `grep -rn "@deepseek-ai" index.js lib/` — the only hit is the definition-id string in `lib/command.js` — plus package `files` |
 | Idempotence | a second failure in the same turn does not re-fold blindly | verified by per-turn budget test |
 | Bundle patch | `cordis.patch.yml` parses and resolves through the host's own loader | verified: `bundlePatchPaths` + `loadOverlayPatches` returned the expected insert entry |
 | Manifest compatibility | host `evaluatePluginCompatibility` accepts the manifest, and rejects 0.1.x | verified: compatible on `0.2.1-rc.3`, `{"engines.dsh":">=0.2.0-rc.1"}` unmet on `0.1.5-rc.2` |
 | Market index entry | the generated entry passes the host's own `parseMarketIndex` and yields a commit-pinned install spec | verified: `parseMarketIndex` + `marketInstallTarget` on `0.2.1-rc.3` |
 | Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (25 assertions) |
-| Pre-flight fold | a projection already larger than the window is folded on the real `agent/pre-step` waterfall before the request is built, the loop's decision comes back untouched, and the pressure band is left to the host | verified by `tests/preflight.test.js` (6 tests) and `scripts/dev/mount-check.mjs` §7 (2 assertions) |
-| Human commands | the host's own `CommandRuntime` lists `/rescue` and `/rescue-status`, executes them, and logs `command/run` + `command/done` | verified by `scripts/dev/mount-check.mjs` §6 (7 assertions) |
+| Pre-flight fold | a projection already larger than the window is folded on the real `agent/pre-step` waterfall before the request is built, the loop's decision comes back untouched, and the pressure band is left to the host | verified by `tests/preflight.test.js` (7 tests) and `scripts/dev/mount-check.mjs` §7 (2 assertions) |
+| Human commands | the host's own `CommandRuntime` lists `/rescue` and `/rescue-status`, executes them, and logs `command/run` + `command/done` | verified by `scripts/dev/mount-check.mjs` §6 (8 assertions) |
 | Installed the way a user installs it | `dsh plugin --profile <name> add <tarball>` — the app's own CLI, forwarding to pnpm in a real profile — produces a profile that depends on and enables the plugin, and the host loader resolves the patch inside it | verified by `scripts/dev/e2e-install.mjs` (10 assertions, throwaway profile removed afterwards) |
 | Installed from the published spec | The line in the README — `dsh plugin --profile <name> add git+https://github.com/Lequait/dsh-context-rescue.git#<ref>` — installs from GitHub, records the git spec, and lands in the profile bundle list | verified by `npm run e2e-install -- --git` (11 assertions) |
 | Installed from the published index | The path a Discover page takes: fetch `market/index.json`, validate it with the host's `parseMarketIndex`, take the spec from `marketInstallTarget`, install that pinned commit, and load the installed copy through the host's bundle loader | verified by `npm run market-install` (17 assertions) |
 | Installed package | `npm pack` output installs as a dependency and the host bundle loader resolves `cordis.patch.yml` from the installed path | verified by `scripts/dev/install-smoke.mjs` |
-| Type contract | every exported signature and internal shape in `index.js` + `lib/` type-checks under `--checkJs` | `npm run typecheck` → 0 errors over 12 files (`tsconfig.json`) |
+| Type contract | every exported signature and internal shape in `index.js` + `lib/` type-checks under `--checkJs` | `npm run typecheck` → 0 errors over 14 files (`tsconfig.json`) |
 | Publish flow | cloning this checkout, pushing into a bare remote, and pinning the index entry produce a host-accepted entry that points at the code commit | verified by `scripts/dev/publish-rehearse.mjs` (18 assertions, no account needed) |
 | Real app boot | the installed bundle really mounts: `apply()` runs in the running app, a planted throw surfaces under the plugin's own entry, and it still mounts in a profile whose composition already has the compression-lane owner | `npm run boot-check` (33 assertions, five throwaway profiles, all removed; the web shape is also started and asked to serve the UI) |
-| Digest readability | the checkpoint a model actually receives names what each tool call was for, collapses repeats to one line plus a count, keeps harness plumbing (runtime snapshots, skill catalogues, memory projections, time samples) out of the intent list, and states a goal restated every round once | `tests/digest.test.js` (5 tests), `scripts/dev/digest-preview.mjs` prints the digest of the largest captured log for reading |
+| Digest readability | the checkpoint a model actually receives names what each tool call was for, collapses repeats to one line plus a count, keeps harness plumbing (runtime snapshots, skill catalogues, memory projections, time samples) out of the intent list, and states a goal restated every round once | `tests/digest.test.js` (8 tests), `scripts/dev/digest-preview.mjs` prints the digest of the largest captured log for reading |
 | Model-facing tools | Each of the three tools is exercised end to end: status is read-only, rescue folds and reports the delta, the manual fold closes its transaction with no turn number, and a call with no session returns an error object | `tests/tools.test.js` (8 tests) |
 | Fold preview | A status call names the span a fold would replace, its cost and what would be kept, and writes nothing | `tests/rescue.test.js` (1 test) + `tests/command.test.js` (assertion) |
 | The request the host would send | After each fold the derived request must shrink and fit, not just the surface price; `/rescue-status` reports both numbers | `scripts/dev/host-session-check.mjs` (2 assertions per folded log) + `tests/command.test.js` |
@@ -274,12 +277,15 @@ declared one, the ladder reaches the zero-model tier, the projection ends up und
 `fitRatio × window`, the surface stays well formed (`corrupt === false`), both fold boundaries
 are balance-safe, the transaction bracket closes, and the replacement carries
 `source.kind === 'compact-checkpoint'`. Every log that is oversized is rescued and none fail. Logs that are empty or already
-fit are skipped rather than failed — the sweep (`node scripts/dev/scan-sessions.mjs`) reports
-`196 logs · 33 rescued · 0 failed`. The count fell from 34 to 31 when the surface
-became exact: `tool/call` and `tool/ptc-dispatch` are event types that the host never puts on a
-surface, so three logs that only looked oversized were already inside the window. It rose to 32
-once the window is resolved from the provider named in the session header: one log belongs to a
-model with a smaller window than `windowFallback`.
+fit are skipped rather than failed — the sweep (`node scripts/dev/scan-sessions.mjs`) currently
+reports `196 logs · 33 rescued · 0 failed` on this machine. The table above is the earlier pass
+that the sweep was built from: it lists 34 logs, because at that point `tool/call` and
+`tool/ptc-dispatch` were still counted as surface nodes, so three logs that only looked oversized
+were already inside the window; with an exact surface the count fell to 31, and it rose to 32
+once the window was resolved from the provider named in the session header (one log belongs to a
+model with a smaller window than `windowFallback`). It has since reached 33 as this machine
+captured another oversized session. Every count in this section, table rows included, is a
+snapshot of one local log directory, not a constant.
 
 ## 6. Known limits
 
