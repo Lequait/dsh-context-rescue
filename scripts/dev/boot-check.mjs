@@ -25,7 +25,7 @@
  * Run it through the app's own Node: `npm run boot-check`.
  */
 
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -85,6 +85,15 @@ function addPlugin(app, name, spec) {
   );
 }
 
+/** The web host prints exactly one line naming its URL; find it without a regex. */
+function urlIn(text) {
+  const marker = 'dsh web: ';
+  const at = text.indexOf(marker);
+  if (at === -1) return undefined;
+  const line = text.slice(at + marker.length).split(String.fromCharCode(10))[0].trim();
+  return line.startsWith('http') ? line : undefined;
+}
+
 function boot(app, name) {
   const run = cli(app, ['--profile', name, BOOT_TASK], { timeout: 180_000 });
   return `${run.stdout ?? ''}\n${run.stderr ?? ''}`;
@@ -118,6 +127,7 @@ function stagePackage(manifestPath) {
 
 async function main() {
   const app = locate();
+  let webHost;
   const profilesDir = join(process.env.DSH_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.dsh'), 'profiles');
   const probeDir = join(profilesDir, PROBE_PROFILE);
   const realDir = join(profilesDir, REAL_PROFILE);
@@ -249,8 +259,43 @@ ${webDump.stderr ?? ''}`;
       'this really is the web shape: the bundle that renders commands is in the same tree',
     );
 
+    // 6. The GUI host itself, not just its configuration. Composition says the entry is in the
+    //    tree; this says the server reached the point of serving the UI with the plugin mounted,
+    //    which a bundle that breaks the host never does. Nothing here needs an API key: the
+    //    server serves before any model call.
+    webHost = spawn(app.exe, [app.bin, '--profile', WEB_PROFILE, '--port', '0', '--no-open'], {
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    });
+    let webOutput = '';
+    webHost.stdout.on('data', (chunk) => { webOutput += String(chunk); });
+    webHost.stderr.on('data', (chunk) => { webOutput += String(chunk); });
+    const webDeadline = Date.now() + 90_000;
+    let webUrl;
+    while (Date.now() < webDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      webUrl = urlIn(webOutput);
+      if (webUrl !== undefined) break;
+      if (webHost.exitCode !== null) break;
+    }
+    ok(webUrl !== undefined, 'the web host started serving with the plugin mounted');
+
+    const opened = await fetch(webUrl, { redirect: 'manual' });
+    const cookie = String(opened.headers.get('set-cookie') ?? '').split(';')[0];
+    ok(opened.status === 303 && cookie !== '', 'the printed URL hands the browser its auth cookie');
+
+    const page = await fetch(new URL(webUrl).origin + '/', { headers: { cookie } });
+    const body = await page.text();
+    ok(page.status === 200 && body.length > 500, 'the UI document is served to an authenticated request');
+    ok(!webOutput.includes('context-rescue (dsh-context-rescue)'), 'the web host reported no error under the plugin entry');
+
     console.log(`boot check: ${assertions} assertions`);
   } finally {
+    if (webHost !== undefined && webHost.pid !== undefined) {
+      spawnSync('taskkill', ['/PID', String(webHost.pid), '/T', '/F'], { stdio: 'ignore' });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
     removeDir(probeDir);
     removeDir(realDir);
     removeDir(pairedDir);

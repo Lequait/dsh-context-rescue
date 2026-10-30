@@ -353,6 +353,8 @@ that overrides the compaction engine, gets the same treatment, because two plugi
 slot is a composition problem; the fifth profile is built from the `web` template instead, which is
 the shape the desktop app composes, and the assertion there is that the entry lands in the same tree
 as `@deepseek-ai/dsh-client-ui-commands` — the bundle that renders the command surface a user sees.
+That profile is then started for real: the host must print its URL, hand the printed URL's auth
+cookie to a request, and serve the UI document. A bundle that breaks the GUI host never gets that far.
 service is a composition question no unit test can answer. All four profiles are removed afterwards.
 It proves mounting, not inference.
 
