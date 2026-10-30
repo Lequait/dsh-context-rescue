@@ -13,6 +13,11 @@
  *    the plugin. The run then stops at the first model call, which is expected
  *    here: this gate proves mounting, not inference.
  *
+ * Two more stages boot the same bundle next to other plugins that touch
+ * compression: the proxy that owns the lane (billion-context) and the one that
+ * overrides the engine (dsh-smart-compact). Those stages rule out composition
+ * conflicts, which no unit test can observe.
+ *
  * Both profiles live under the real `$DSH_HOME/profiles` (the app resolves home
  * from the OS account, so it cannot be redirected), and both are removed in a
  * `finally` block.
@@ -32,6 +37,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PROBE_PROFILE = `rescue-boot-probe-${Date.now().toString(36)}`;
 const REAL_PROFILE = `rescue-boot-${Date.now().toString(36)}`;
 const PAIRED_PROFILE = `rescue-boot-pair-${Date.now().toString(36)}`;
+const SLOT_PROFILE = `rescue-boot-slot-${Date.now().toString(36)}`;
 const BOOT_TASK = 'reply with the single word ok';
 
 let assertions = 0;
@@ -115,6 +121,8 @@ async function main() {
   const probeDir = join(profilesDir, PROBE_PROFILE);
   const realDir = join(profilesDir, REAL_PROFILE);
   const pairedDir = join(profilesDir, PAIRED_PROFILE);
+  const slotDir = join(profilesDir, SLOT_PROFILE);
+  const compactStage = mkdtempSync(join(tmpdir(), 'dsh-smart-compact-'));
 
   try {
     // 1. Positive control: a bundle that throws from apply() must be reported
@@ -189,12 +197,48 @@ async function main() {
       );
     }
 
+    // 4. The same bundle next to the plugin that overrides the compaction
+    //    engine. Both of them influence the same service, and only one may
+    //    provide it; the failure this stage rules out is a composition conflict,
+    //    not a behaviour of either plugin.
+    makeProfile(app, SLOT_PROFILE);
+    const fetched = spawnSync(
+      'npm',
+      ['pack', 'dsh-smart-compact@0.5.3', '--registry', 'https://registry.npmjs.org/', '--silent'],
+      { cwd: compactStage, encoding: 'utf8', shell: true },
+    );
+    const fetchedName = String(fetched.stdout ?? '').trim().split(String.fromCharCode(10)).filter(Boolean).at(-1);
+    if (fetched.status !== 0 || fetchedName === undefined) {
+      console.log('  skip the smart-compact pairing (it could not be fetched from the registry)');
+    } else {
+      const installed = cli(app, ['plugin', '--profile', SLOT_PROFILE, 'add', join(compactStage, fetchedName)]);
+      if (installed.status !== 0) {
+        console.log('  skip the smart-compact pairing (the app CLI refused the tarball)');
+      } else {
+        addPlugin(app, SLOT_PROFILE, join(realStage, realTarball));
+        const slotDump = String(cli(app, ['--profile', SLOT_PROFILE, '--dump-config']).stdout ?? '');
+        ok(slotDump.includes('dsh-smart-compact'), 'the engine-overriding plugin composes into the profile');
+        ok(slotDump.includes('- id: context-rescue'), 'the rescue plugin composes into the same profile');
+        const slotOutput = boot(app, SLOT_PROFILE);
+        ok(
+          !slotOutput.includes('context-rescue (dsh-context-rescue)'),
+          'the bundle mounts next to an engine-overriding plugin without an error of its own',
+        );
+        ok(
+          /MISSING_CREDENTIAL|no API key|answer/u.test(slotOutput),
+          'the slot-sharing boot proceeded past mounting to the model stage',
+        );
+      }
+    }
+
     console.log(`boot check: ${assertions} assertions`);
   } finally {
     removeDir(probeDir);
     removeDir(realDir);
     removeDir(pairedDir);
-    for (const dir of [probeDir, realDir, pairedDir]) {
+    removeDir(slotDir);
+    removeDir(compactStage);
+    for (const dir of [probeDir, realDir, pairedDir, slotDir]) {
       if (existsSync(dir)) console.log(`boot check warning: ${dir} could not be removed`);
     }
   }

@@ -341,15 +341,17 @@ next request would carry. 174 logs seed, 65 fold (twice each, to prove a folded 
 folded again), 30 of those folds come from the pre-flight path before any request failed, and the rest are skipped because the host itself cannot re-seed them in isolation
 (a foreign plugin's message projection, or a pre-v4 log).
 
-`boot-check` goes one level higher: it boots the application. It builds three throwaway profiles from
+`boot-check` goes one level higher: it boots the application. It builds four throwaway profiles from
 the shipped `headless` template — first a copy of this package whose `apply()` throws, and asserts
 the host reports that error under the very entry it inserted (`context-rescue (dsh-context-rescue)`),
 because a clean "no error" run would otherwise prove nothing; then the real tarball, and asserts the
 boot walks past mounting with no error naming the plugin and stops at the model call, exactly where
 a machine without an API key stops; finally `billion-context`, the proxy that owns the compression
 lane on some machines, is installed next to the plugin and the composed profile is booted again, so
-"works beside the lane owner" is measured instead of assumed. All three profiles are removed
-afterwards. It proves mounting, not inference.
+"works beside the lane owner" is measured instead of assumed; and `dsh-smart-compact`, the plugin
+that overrides the compaction engine, gets the same treatment, because two plugins reaching for one
+service is a composition question no unit test can answer. All four profiles are removed afterwards.
+It proves mounting, not inference.
 
 `coexist` mounts the plugin beside the host's *real* compaction engine
 (`@deepseek-ai/dsh-compaction-basic`, the one a stock profile puts in the slot) with a fake `llm`
