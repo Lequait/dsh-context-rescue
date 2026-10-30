@@ -227,6 +227,9 @@ npm run publish:rehearse
 
 # 为当前 checkout 生成并校验上架条目
 npm run market -- --repo-slug OWNER/dsh-context-rescue
+
+# 可选的 npm 发布：先查工作树、包内容清单、版本是否被占，最后停在唯一需要账号的那一步
+npm run publish:npm -- --dry-run
 ```
 
 覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算、no-op 借用引擎、

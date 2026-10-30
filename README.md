@@ -248,6 +248,10 @@ npm run publish:rehearse
 
 # build + validate a market index entry for this checkout
 npm run market -- --repo-slug OWNER/dsh-context-rescue
+
+# the optional npm release: checks the tree, the tarball list and the taken version,
+# then stops at the one step that needs an account
+npm run publish:npm -- --dry-run
 ```
 
 The suite covers detection, pairing-safe planning, fold transactions, ladder behaviour, lane
