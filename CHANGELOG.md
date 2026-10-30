@@ -40,6 +40,9 @@ look like it worked while doing nothing, or do something irreversible for the wr
   clean in 14 files, four simulated failure scenarios, 26 assertions inside the installed host's
   cordis container, and the two real-log sweeps at 200 logs: 69 folded under the host's own
   `Session` class (31 of them pre-flight) and 33 rescued by the full ladder, 0 failures in both.
+- The registry spec is now a gate: `npm run e2e-install -- --npm` installs `dsh-context-rescue@<version>`
+  through the app's own CLI and checks the recorded dependency, so the listing people use is
+  proven rather than assumed. The published tarball is unchanged — `scripts/` is not in `files`.
 - Published to npm: `dsh-context-rescue@0.2.2` (`latest`), with the `NPM_TOKEN` repository secret
   set so later tags publish through the release workflow. npm keeps a public `0.0.0-stage` stub
   version for a newly claimed name; it is a placeholder, not the package.

@@ -35,11 +35,18 @@ const ROOT = join(import.meta.dirname, '..', '..');
 
 /**
  * `--git [ref]` installs the published git spec instead of a freshly packed tarball, which is
- * the command a user actually runs; it needs network access to the repository. Without it the
- * gate stays hermetic and only uses what `npm pack` produced.
+ * the command a user actually runs; it needs network access to the repository. `--npm [version]`
+ * does the same for the registry spec, so the npm listing is a gate and not a one-off check.
+ * Without either flag the gate stays hermetic and only uses what `npm pack` produced.
  */
 const gitArgIndex = process.argv.indexOf('--git');
 const gitRef = gitArgIndex === -1 ? undefined : (process.argv[gitArgIndex + 1] ?? 'HEAD');
+const npmArgIndex = process.argv.indexOf('--npm');
+const npmVersion = npmArgIndex === -1
+  ? undefined
+  : (/^\d+\.\d+\.\d+/u.test(String(process.argv[npmArgIndex + 1] ?? ''))
+    ? String(process.argv[npmArgIndex + 1])
+    : JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', 'package.json'), 'utf8')).version);
 const profileName = `rescue-e2e-${Date.now().toString(36)}`;
 const profileDir = join(homedir(), '.dsh', 'profiles', profileName);
 if (existsSync(profileDir)) throw new Error(`refusing to reuse an existing profile: ${profileDir}`);
@@ -57,7 +64,13 @@ const check = (label, condition, detail) => {
 let tarball;
 try {
   let spec = tarball;
-  if (gitRef === undefined) {
+  let mode = 'tarball';
+  if (npmVersion !== undefined) {
+    spec = `dsh-context-rescue@${npmVersion}`;
+    mode = 'npm';
+    process.stdout.write(`1. install the published npm spec ${spec}
+`);
+  } else if (gitRef === undefined) {
     process.stdout.write('1. pack the plugin\n');
     const pack = spawnSync('npm', ['pack', '--silent'], { cwd: ROOT, encoding: 'utf8', shell: true });
     if (pack.status !== 0) throw new Error(`npm pack failed: ${pack.stderr}`);
@@ -65,6 +78,7 @@ try {
     check('a tarball was produced', existsSync(tarball), tarball);
     spec = tarball;
   } else {
+    mode = 'git';
     const published = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).repository?.url ?? '';
     const https = String(published).replace(/^git\+/u, '').replace(/\.git$/u, '');
     if (https === '') throw new Error('package.json has no repository.url; nothing to install from');
@@ -80,12 +94,16 @@ try {
   });
   const output = `${installed.stdout ?? ''}${installed.stderr ?? ''}`;
   check('the CLI exited cleanly', installed.status === 0, output.slice(-500));
-  if (spec !== tarball) check('the profile recorded the git spec', output.includes('dsh-context-rescue'), output.slice(-400));
+  if (mode !== 'tarball') check(`the profile recorded the ${mode} spec`, output.includes('dsh-context-rescue'), output.slice(-400));
 
   const manifestPath = join(profileDir, 'package.json');
   check('it created the profile', existsSync(manifestPath), profileDir);
   const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : { dependencies: {}, dsh: {} };
   check('the profile depends on the plugin', typeof manifest.dependencies?.['dsh-context-rescue'] === 'string', JSON.stringify(manifest.dependencies ?? {}));
+  if (mode === 'npm') {
+    const recorded = String(manifest.dependencies?.['dsh-context-rescue'] ?? '');
+    check('the recorded dependency is the published version', recorded.includes(npmVersion), recorded);
+  }
   check('the plugin is switched on in the profile bundle list', (manifest.dsh?.profile?.bundles ?? []).includes('dsh-context-rescue'), JSON.stringify(manifest.dsh?.profile?.bundles ?? []));
 
   const packageDir = join(profileDir, 'node_modules', 'dsh-context-rescue');

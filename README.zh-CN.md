@@ -278,6 +278,7 @@ npm run coexist
 npm run e2e-install
 # 同上，但装的是已发布的 git spec（真实网络路径）
 npm run e2e-install -- --git
+npm run e2e-install -- --npm         # 同上，但用 registry 上的 npm spec 安装（用户最常走的那条）
 # 真的启动应用：apply() 被执行吗，且能否与占用压缩车道的插件同一个 profile 共存
 npm run boot-check
 # 拉线上市场索引，交给宿主解析，再装它给出的 spec（Discover 页走的同一条路）
