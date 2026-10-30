@@ -68,7 +68,19 @@ function makeRehearsal(prefix) {
   execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, cloneDir], { stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync('git', ['init', '--quiet', '--bare', bareDir], { stdio: ['ignore', 'pipe', 'pipe'] });
   configureIdentity(cloneDir);
+  ensureBranch(cloneDir);
   return { dir, clone: cloneDir, bare: bareDir };
+}
+
+/**
+ * The rehearsal run from a tag is on a detached HEAD, which the publish script rightly refuses.
+ * Give the clone a branch of its own so the rehearsal exercises the branch flow, not an error.
+ */
+function ensureBranch(dir, name = 'master') {
+  const current = git(['symbolic-ref', '--quiet', '--short', 'HEAD'], dir, { allowFailure: true });
+  if (typeof current === 'string' && current.trim() !== '') return current.trim();
+  git(['checkout', '--quiet', '-b', name], dir);
+  return name;
 }
 
 /** Windows keeps the clone's object files locked for a moment after the child git exits. */
@@ -110,6 +122,7 @@ try {
   execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, clone], { stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync('git', ['init', '--quiet', '--bare', bare], { stdio: ['ignore', 'pipe', 'pipe'] });
   configureIdentity(clone);
+  ensureBranch(clone);
   const sourceHead = git(['rev-parse', 'HEAD'], ROOT);
   const sourceStatus = git(['status', '--porcelain'], ROOT);
   check('the clone starts at this checkout', git(['rev-parse', 'HEAD'], clone) === sourceHead);
