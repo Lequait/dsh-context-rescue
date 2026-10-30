@@ -305,6 +305,19 @@ the two checks cover different failures, and neither hides the other.
 
 ## Verification
 
+Three commands run the gates in the order a person would type them, stream their output, and end
+with a table naming the one that failed:
+
+```bash
+npm run verify           # core: the unit suite, the type contract, the four simulated failures
+npm run verify:host      # the twelve gates that need the installed app on this machine
+npm run verify:network   # the four gates that need the registry or the repository
+```
+
+`node scripts/dev/verify.mjs --group host --only install-smoke,schema-check` runs two of them.
+
+The individual commands, if you want one at a time:
+
 ```bash
 node --test                          # unit + replay
 npm run typecheck                    # JSDoc type contract over index.js and lib/
@@ -346,8 +359,8 @@ rejection that forces the ladder, an internal throw that is handed back to the h
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
-sweeps every log on this machine and folds each oversized one with zero model calls: 33 of 200
-captured sessions exceed a 196,608-token window and all 33 are rescued, with no failure
+sweeps every log on this machine and folds each oversized one with zero model calls: 34 of 216
+captured sessions exceed a 196,608-token window and all 34 are rescued, with no failure
 (`docs/PLAN.md` §5). The counts here are a snapshot of this machine: they grow as
 sessions are captured, and `scan` and `host-session` recompute them, so the numbers below are
 that same snapshot rather than fixed constants.
@@ -356,8 +369,8 @@ that same snapshot rather than fixed constants.
 the `Session` class out of the installed app bundle and replays captured logs through it, so the
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 200 logs seed, 69 fold (twice each, to prove a folded session can be
-folded again), 31 of those folds come from the pre-flight path before any request failed, and the
+next request would carry. 216 logs seed, 70 fold (twice each, to prove a folded session can be
+folded again), 32 of those folds come from the pre-flight path before any request failed, and the
 rest are skipped because the host itself cannot re-seed them in isolation (a foreign plugin's
 message projection, or a pre-v4 log).
 

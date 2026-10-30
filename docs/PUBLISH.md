@@ -11,9 +11,9 @@ Everything that can be built without credentials is already done and green:
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 26 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
-| Sweep of every captured session log | `npm run scan` | 200 logs, 33 oversized, 33 rescued, 167 skipped, 0 failed |
+| Sweep of every captured session log | `npm run scan` | 216 logs, 34 oversized, 34 rescued, 182 skipped, 0 failed |
 | The real application boots and mounts the bundle | `npm run boot-check` | 33 assertions: a planted throw is reported under the plugin entry, the real package mounts without one, it still mounts next to `billion-context` (lane owner) and next to `dsh-smart-compact` (engine overrider), it composes into the `web` shape the desktop app runs (same tree as the bundle that renders commands), and that host is then started for real: it prints its URL, hands out the auth cookie, and serves the UI document |
-| The host's own `Session` class (from the app bundle) | `npm run host-session` | 200 logs seeded, 69 folded (31 via pre-flight), 131 unseedable/skipped, 0 failed |
+| The host's own `Session` class (from the app bundle) | `npm run host-session` | 216 logs seeded, 70 folded (32 via pre-flight), 146 unseedable/skipped, 0 failed |
 | Cost of a rescue and of the pre-step check | `node scripts/dev/rescue-bench.mjs` | rescue median 1.1 s, p95 7.9 s over the 19 largest captured logs (most of it is loading the log); pre-flight median cold 16 ms, warm 0 ms — the second check in a turn does not re-measure |
 | The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Installed the way a user installs it | `npm run e2e-install` | 10 assertions: `dsh plugin --profile … add <tarball>` creates the profile, switches the bundle on, and the host loader resolves the patch from it; the profile is removed afterwards |
@@ -26,7 +26,7 @@ Everything that can be built without credentials is already done and green:
 What remains needs an authenticated remote: nothing in the list above can create or write to a
 hosted repository on its own.
 
-The log-derived counts (`200 logs`, `33 rescued`, `69 folds`, `131 skipped`) and the bench
+The log-derived counts (`216 logs`, `34 rescued`, `70 folds`, `146 skipped`) and the bench
 timings below are a snapshot of this development machine: they move as sessions are captured, and
 `scan`, `host-session` and `rescue-bench` recompute them.
 

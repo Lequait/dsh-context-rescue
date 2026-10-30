@@ -42,7 +42,11 @@
     "market-install": "node scripts/run-host-node.mjs scripts/dev/market-install.mjs",
     "boot-check": "node scripts/run-host-node.mjs scripts/dev/boot-check.mjs",
     "schema-check": "node scripts/run-host-node.mjs scripts/dev/schema-check.mjs",
-    "awesome": "node scripts/dev/submit-awesome.mjs"
+    "awesome": "node scripts/dev/submit-awesome.mjs",
+    "verify": "node scripts/dev/verify.mjs --group core",
+    "verify:host": "node scripts/dev/verify.mjs --group host",
+    "verify:network": "node scripts/dev/verify.mjs --group network",
+    "verify:all": "node scripts/dev/verify.mjs --group all"
   },
   "dsh": {
     "bundle": {
