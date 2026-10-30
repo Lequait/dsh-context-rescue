@@ -170,8 +170,9 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 宿主压缩引擎时服务槽仍归宿主、急救仍在零模型档完成。
 
 `install-smoke` 是打包闸门：`npm pack` 决定最终发出去的形状（受 `files` 白名单约束），
-tarball 被当作依赖装进一次性项目，再由**宿主自己的** `bundlePatchPaths`/`loadOverlayPatches`
-从"安装后的路径"解析出 patch。少一个文件、或 patch 相对目录解析错，只会在这一关暴露 —— 其余闸门
+tarball 被当作依赖装进一次性项目，`evaluatePluginCompatibility` 断言宿主接受这个 manifest
+（同时用一个故意写成不可能满足的 `engines.dsh` 做反例，保证这道闸门不会空过），再由**宿主自己的**
+`bundlePatchPaths`/`loadOverlayPatches` 从"安装后的路径"解析出 patch。少一个文件、或 patch 相对目录解析错，只会在这一关暴露 —— 其余闸门
 读的都是源码树。
 
 模拟不是摆设：它抓到了一个真 bug —— 计量路径复用了摘要渲染的 2000 字符截断，把一条
