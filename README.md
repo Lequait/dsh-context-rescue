@@ -151,6 +151,12 @@ regardless of the code the host assigned.
      original length and what was dropped. Only text messages whose removal keeps tool pairing
      balanced qualify; an orphan `tool/result` or an assistant message carrying calls is never
      touched.
+   The system prompt is never excerpted: an excerpt of the instructions would keep the request
+   legal while quietly removing what the turn was told to do, so if that is the only thing left
+   over the window the ladder reports a failure instead of pretending. Several pasted blocks at
+   once are handled in one pass — the fold takes the older span, and T4 cuts down what survives
+   in the tail.
+
 5. **Retry once.** Return `{ kind: 'retry' }` so the loop resends the same step against the
    now-smaller surface. If every tier fails, or the per-turn budget is spent, delegate with
    `next()` and let the host report the real error.

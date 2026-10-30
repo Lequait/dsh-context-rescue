@@ -27,6 +27,67 @@ function oneBigMessage(body) {
   return session;
 }
 
+/** How many excerpt checkpoints the surface now carries. */
+function excerptCount(session) {
+  return session.events.filter((event) => event.type === 'user/message'
+    && String(event.data?.message?.content?.[0]?.text ?? event.data?.content?.[0]?.text ?? '')
+      .includes('首尾摘录')).length;
+}
+
+/** Two pasted blocks that are each, on their own, over the window. */
+function twoBigMessages() {
+  const session = new FakeSession();
+  session.append('system/message', { message: { content: [{ type: 'text', text: 'sys' }] } });
+  session.append('user/message', { message: { content: [{ type: 'text', text: `甲${'甲'.repeat(55000)}` }] } });
+  session.append('assistant/message', { message: { content: [{ type: 'text', text: '收到，继续。' }] } });
+  session.append('user/message', { message: { content: [{ type: 'text', text: `乙${'乙'.repeat(55000)}` }] } });
+  return session;
+}
+
+test('several pasted blocks are cut down in one pass', async () => {
+  const session = new FakeSession();
+  session.append('system/message', { message: { content: [{ type: 'text', text: 'sys' }] } });
+  for (const mark of ['甲', '乙', '丙']) {
+    session.append('user/message', { message: { content: [{ type: 'text', text: mark + mark.repeat(120000) }] } });
+    session.append('assistant/message', { message: { content: [{ type: 'text', text: '好的' }] } });
+  }
+  const ctx = fakeContext({ llm: fakeLlm(WINDOW) });
+  const config = resolveConfig({});
+  assert.ok(measure(ctx, session).totalTokens > WINDOW * 3, 'seed must be far over the window');
+
+  const report = await rescue(ctx, {
+    agent: { session }, session, failure: OVERFLOW, provider: 'p', config, turn: 4,
+  });
+
+  assert.equal(report.action, 'retry');
+  assert.ok(report.after.totalTokens < WINDOW, `still over: ${report.after.totalTokens}`);
+  assert.ok(excerptCount(session) >= 1, 'at least the surviving block was excerpted');
+});
+
+test('the system prompt is never replaced by an excerpt', async () => {
+  const session = new FakeSession();
+  const instructions = '系'.repeat(120000);
+  session.append('system/message', { message: { content: [{ type: 'text', text: instructions }] } });
+  for (let i = 0; i < 8; i += 1) {
+    session.append('user/message', { message: { content: [{ type: 'text', text: `步骤 ${i}` }] } });
+    session.append('assistant/message', { message: { content: [{ type: 'text', text: `好 ${i}` }] } });
+  }
+  const ctx = fakeContext({ llm: fakeLlm(WINDOW) });
+  const config = resolveConfig({});
+
+  const report = await rescue(ctx, {
+    agent: { session }, session, failure: OVERFLOW, provider: 'p', config, turn: 4,
+  });
+
+  assert.equal(report.action, 'pass', 'an unshrinkable system prompt is a failure to report, not to paper over');
+  assert.equal(excerptCount(session), 0);
+  const tier = report.tiers.find((entry) => entry.tier === 'oversized-message');
+  assert.equal(tier.ok, false);
+  assert.match(tier.skipped, /system prompt is never excerpted/u);
+  const first = session.events.find((event) => event.type === 'system/message');
+  assert.equal(first.data?.message?.content?.[0]?.text, instructions, 'the instructions are untouched');
+});
+
 test('a message that alone overflows is replaced by its own head and tail', async () => {
   const body = `HEAD-MARKER${'内容'.repeat(45000)}TAIL-MARKER`;
   const session = oneBigMessage(body);

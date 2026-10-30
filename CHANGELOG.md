@@ -18,6 +18,12 @@ where a proxy owns compression.
 
 ### Fixed
 
+- A mechanical fold that left the projection over the window was reported as a rescue, so the
+  host retried a request that was certain to fail again. Tiers now claim success only when the
+  result actually fits, and the ladder continues to the tier that can still cut.
+- T4 would have excerpted the system prompt if it were the largest node. The instructions are not
+  history: they are never replaced, and the ladder says the session cannot be shrunk instead.
+
 - An oversized single message was invisible to T4 whenever anything else sat on the surface: the
   pairing cuts were computed over the raw log (which also carries `tool/call` mirrors and
   compaction brackets) instead of over the surface nodes, so every index was shifted and no
