@@ -37,7 +37,8 @@
     "scan": "node scripts/dev/scan-sessions.mjs",
     "host-session": "node scripts/run-host-node.mjs scripts/dev/host-session-check.mjs",
     "coexist": "node scripts/run-host-node.mjs scripts/dev/coexist-check.mjs",
-    "e2e-install": "node scripts/run-host-node.mjs scripts/dev/e2e-install.mjs"
+    "e2e-install": "node scripts/run-host-node.mjs scripts/dev/e2e-install.mjs",
+    "market-install": "node scripts/run-host-node.mjs scripts/dev/market-install.mjs"
   },
   "dsh": {
     "bundle": {

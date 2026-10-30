@@ -61,6 +61,9 @@ where a proxy owns compression.
 - The app's own CLI (`dsh plugin --profile <name> add <tarball>`) installs the packed tarball into
   a real profile, which then depends on the plugin and lists its bundle; the host loader resolves
   the patch from inside that profile (10 assertions, throwaway profile removed).
+- The marketplace path runs end to end: the published index is fetched over HTTPS, validated by the
+  host's `parseMarketIndex`, turned into an install spec by `marketInstallTarget`, and that pinned
+  commit is installed into a profile and loaded through the host's bundle loader (17 assertions).
 - A mount check inside the installed host's own cordis container (23 assertions, including the
   host's real `CommandRuntime`), a package install smoke (16 assertions) and a publish rehearsal
   against a bare remote (18 assertions).

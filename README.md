@@ -189,6 +189,7 @@ npm run host-session                 # the same folds through the host's own Ses
 npm run coexist                      # rescue beside the host's real compaction engine
 npm run e2e-install                  # install through the app's own CLI into a throwaway profile
 npm run e2e-install -- --git         # same, but from the published git spec instead of a tarball
+npm run market-install               # fetch the published market index, let the host parse it, install what it says
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
 # the same suite under the app's own Node, where the host validator is reachable

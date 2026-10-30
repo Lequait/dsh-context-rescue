@@ -180,6 +180,8 @@ npm run coexist
 npm run e2e-install
 # 同上，但装的是已发布的 git spec（真实网络路径）
 npm run e2e-install -- --git
+# 拉线上市场索引，交给宿主解析，再装它给出的 spec（Discover 页走的同一条路）
+npm run market-install
 
 # 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
 # （同时钉住分支规则：空远端首次推送改成 main，已有 master 的仓库保持 master）

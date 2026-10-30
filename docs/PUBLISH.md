@@ -16,6 +16,7 @@ Everything that can be built without credentials is already done and green:
 | The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Installed the way a user installs it | `npm run e2e-install` | 10 assertions: `dsh plugin --profile … add <tarball>` creates the profile, switches the bundle on, and the host loader resolves the patch from it; the profile is removed afterwards |
 | Installed from the published spec | `npm run e2e-install -- --git` | 11 assertions through the same CLI, but with `git+https://github.com/Lequait/dsh-context-rescue.git#<ref>` — the line the README tells users to run — so the git source, not just the tarball, is proven to install and register |
+| Installed the way a Discover page would | `npm run market-install` | 17 assertions: fetches the published index, hands it to the host's `parseMarketIndex`, asks `marketInstallTarget` for the spec, installs exactly that pinned commit, and confirms the host loader finds the patch in the installed copy — the one row that would otherwise only fail after publishing |
 | Market index entry | `npm run market -- --repo-slug OWNER/dsh-context-rescue` | validated by the host |
 
 What remains needs an authenticated remote: nothing in the list above can create or write to a
