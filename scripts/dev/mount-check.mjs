@@ -171,5 +171,60 @@ check(
 check('the host engine no-op was recorded as a failed tier', coexistReport.tiers.find((tier) => tier.tier === 'host-compaction')?.ok === false);
 check('a borrowed-tier no-op does not block the compression lane', rescueStateOf(coexistAgent).laneBlocked === false);
 
+process.stdout.write('6. the slash commands through the real command registry\n');
+// The strongest form of this check: mount the host's own CommandRuntime, then
+// execute the lines exactly as a UI adapter would.
+const commandsEntry = join(ASAR, 'node_modules/@deepseek-ai/dsh-commands/lib/types/index.js');
+const CommandsRuntime = (await import(pathToFileURL(commandsEntry).href)).default;
+root.plugin(CommandsRuntime);
+await new Promise((resolve) => setTimeout(resolve, 50));
+
+const commands = root.get('commands');
+const commandSession = new FakeSession();
+seedConversation(commandSession, { turns: 24, chars: 9000 });
+const commandAgent = { session: commandSession, id: 'commands' };
+const descriptorsOf = (name) => commands
+  .list(commandAgent)
+  .filter((descriptor) => (name === undefined ? descriptor.name.startsWith('rescue') : descriptor.name === name));
+
+check(
+  'both rescue commands are listed by the host registry',
+  descriptorsOf().map((descriptor) => descriptor.name).join(',') === 'rescue,rescue-status',
+  descriptorsOf().map((descriptor) => descriptor.name).join(','),
+);
+check(
+  'the registry kept their descriptions',
+  descriptorsOf().every((descriptor) => descriptor.description.trim().length > 0),
+);
+
+const nodesBeforeStatus = commandSession.surface.nodes.length;
+const statusRun = await commands.execute(commandAgent, '/rescue-status', [], new AbortController().signal);
+check('  /rescue-status succeeded', statusRun?.result?.kind === 'success', JSON.stringify(statusRun?.result ?? null).slice(0, 200));
+check(
+  '/rescue-status left the session alone',
+  commandSession.surface.nodes.length === nodesBeforeStatus,
+  `${nodesBeforeStatus} → ${commandSession.surface.nodes.length}`,
+);
+
+const nodesBeforeFold = commandSession.surface.nodes.length;
+const rescueRun = await commands.execute(commandAgent, '/rescue', [], new AbortController().signal);
+check('/rescue succeeded', rescueRun?.result?.kind === 'success', JSON.stringify(rescueRun?.result ?? null).slice(0, 200));
+check(
+  '/rescue folded the surface',
+  commandSession.surface.nodes.length < nodesBeforeFold,
+  `${nodesBeforeFold} → ${commandSession.surface.nodes.length}`,
+);
+check(
+  '/rescue points the UI at the replacement event',
+  Number.isSafeInteger(rescueRun?.result?.sourceEventSeq),
+  String(rescueRun?.result?.sourceEventSeq),
+);
+check(
+  'the host logged command/run and command/done',
+  commandSession.events.some((event) => event.type === 'command/run')
+    && commandSession.events.some((event) => event.type === 'command/done'),
+  commandSession.events.map((event) => event.type).filter((type) => type.startsWith('command/')).join(','),
+);
+
 process.stdout.write(failures.length === 0 ? '\nload test passed\n' : `\nload test failed: ${failures.join(', ')}\n`);
 process.exitCode = failures.length === 0 ? 0 : 1;

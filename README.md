@@ -117,6 +117,21 @@ their shape and their pointers.
 
 Tools never throw; they return a report object with `ok`, `reason` and counters.
 
+## Commands
+
+Two slash commands are registered whenever the host exposes a command registry (the same slot
+`/compact` uses). They are optional — a profile without the registry still gets the automatic
+path and the tools.
+
+| Command | Purpose |
+|---|---|
+| `/rescue` | fold the oldest span now and report the token delta (`/rescue status` reports only) |
+| `/rescue-status` | occupancy, resolved window, whether a fold is possible, and the last attempt |
+
+The registry may mount after this plugin; registration is retried when the service appears.
+Results are one line of text, and a rescue folds through exactly the same code path as the
+automatic one. Commands never throw.
+
 ## Configuration
 
 All keys are optional; pass them through the plugin's config block.
@@ -138,6 +153,7 @@ All keys are optional; pass them through the plugin's config block.
 | `extraPatterns` | `[]` | regex sources added to overflow detection |
 | `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | proxy refusals that permanently block T2 |
 | `registerTools` | `true` | register the three tools |
+| `registerCommands` | `true` | register `/rescue` and `/rescue-status` when the host has a command registry |
 | `verbose` | `true` | log rescue decisions to the session |
 
 ## Safety

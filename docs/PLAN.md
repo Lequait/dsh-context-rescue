@@ -102,9 +102,15 @@ Gate: 8 tests, including "the host engine is called exactly once, then never aga
 
 Three tools, so a stuck user (or an agent reading `session`, e.g. a teammate or a script) can
 act without waiting for a failure: `context_rescue` (`status` / `rescue`),
-`context_rescue_estimate`, `context_rescue_fold`. Tools return data, never throw.
+`context_rescue_estimate`, `context_rescue_fold`. Tools return data, never throw. The tools cover
+the model; the person in the composer needs a lever too, so the plugin also registers `/rescue`
+and `/rescue-status` on the host command registry (the `/compact` slot). That service is
+feature-detected, never injected: a profile without it must still arm the request-error hook, and
+registration is retried on `internal/service` when the registry mounts later.
 
-Gate: exercised through the fake context in `tests/rescue.test.js` → **passed**.
+Gate: exercised through the fake context in `tests/rescue.test.js` and `tests/command.test.js`,
+and end-to-end through the host's own `CommandRuntime` (`/rescue-status` then `/rescue`, including
+`command/run` + `command/done` lifecycle) in `scripts/dev/mount-check.mjs` → **passed**.
 
 ### Phase F — Simulation and replay (done)
 
@@ -157,7 +163,8 @@ bundle shape.
 | Bundle patch | `cordis.patch.yml` parses and resolves through the host's own loader | verified: `bundlePatchPaths` + `loadOverlayPatches` returned the expected insert entry |
 | Manifest compatibility | host `evaluatePluginCompatibility` accepts the manifest, and rejects 0.1.x | verified: compatible on `0.2.1-rc.3`, `{"engines.dsh":">=0.2.0-rc.1"}` unmet on `0.1.5-rc.2` |
 | Market index entry | the generated entry passes the host's own `parseMarketIndex` and yields a commit-pinned install spec | verified: `parseMarketIndex` + `marketInstallTarget` on `0.2.1-rc.3` |
-| Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (15 assertions) |
+| Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (22 assertions) |
+| Human commands | the host's own `CommandRuntime` lists `/rescue` and `/rescue-status`, executes them, and logs `command/run` + `command/done` | verified by `scripts/dev/mount-check.mjs` §6 (7 assertions) |
 | Installed package | `npm pack` output installs as a dependency and the host bundle loader resolves `cordis.patch.yml` from the installed path | verified by `scripts/dev/install-smoke.mjs` |
 
 ## 5. Real-log evidence

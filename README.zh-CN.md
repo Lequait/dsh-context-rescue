@@ -101,6 +101,17 @@ DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `ind
 
 工具不抛异常，统一返回带 `ok`、`reason` 和计数的报告对象。
 
+## 斜杠命令
+
+只要宿主提供了命令注册表（`/compact` 用的那个槽），插件就会注册两个命令。它们是可选的：没有该注册表的 profile 仍然有自动急救与工具。
+
+| 命令 | 用途 |
+|---|---|
+| `/rescue` | 立刻折叠最旧的一段并报告 token 变化（`/rescue status` 只报告不改写） |
+| `/rescue-status` | 报告占用、解析出的窗口、是否可折叠，以及上一次急救结果 |
+
+命令注册表可能比插件后挂载，插件会在服务出现时补注册。命令结果是一行文本，走的仍是与自动急救完全相同的代码路径，且永不抛异常。
+
 ## 配置
 
 全部可选。
@@ -122,6 +133,7 @@ DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `ind
 | `extraPatterns` | `[]` | 追加的溢出识别正则 |
 | `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | 命中即永久关闭 T2 |
 | `registerTools` | `true` | 是否注册上述三个工具 |
+| `registerCommands` | `true` | 宿主有命令注册表时是否注册 `/rescue` 与 `/rescue-status` |
 | `verbose` | `true` | 把急救决策写进会话日志 |
 
 ## 安全边界

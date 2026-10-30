@@ -13,6 +13,7 @@
  * @module dsh-context-rescue
  */
 
+import { registerCommands } from './lib/command.js';
 import { resolveConfig } from './lib/config.js';
 import { log, rememberReport, rescue, rescueStateOf } from './lib/rescue.js';
 import { registerTools } from './lib/tools.js';
@@ -38,6 +39,14 @@ export function apply(ctx, rawConfig) {
     registerTools(ctx, config);
   } catch (error) {
     log(ctx, 'warn', `tool registration failed: ${errorText(error)}`);
+  }
+
+  // Commands are optional: the service is absent in some profiles, and losing
+  // the slash commands must never cost us the request-error hook below.
+  try {
+    registerCommands(ctx, config);
+  } catch (error) {
+    log(ctx, 'warn', `command registration failed: ${errorText(error)}`);
   }
 
   /**
