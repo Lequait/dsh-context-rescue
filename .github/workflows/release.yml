@@ -15,7 +15,14 @@ permissions:
 
 jobs:
   release:
+    # A tag is the only thing that should publish. The branch push that creates a tag would
+    # otherwise run this whole chain a second time and report a skipped npm step for no reason.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    env:
+      # Declared once at the job level: a step-level `if` can read it as `env.NPM_TOKEN`,
+      # while a step's own `env` block would only exist inside that step.
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,26 +57,28 @@ jobs:
             console.log('tag matches package version ' + version);
           "
       - name: npm publish
-        if: ${{ secrets.NPM_TOKEN != '' }}
+        # `secrets` is not available inside `if:`; map it into `env` and test that instead.
+        if: env.NPM_TOKEN != ''
         run: npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Report the npm step
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+          if [ -n "${NPM_TOKEN}" ]; then
             echo "Published to npm."
           else
             echo "Skipped npm publish: no NPM_TOKEN repository secret."
-            echo "The marketplace entry uses the git source, so this repository is installable"
-            echo "without npm. Add the secret to publish an npm-sourced version too."
+            echo "The marketplace entry installs from the git source, so the repository works without npm."
           fi
           {
-            echo "### Release ${{ github.ref_name }}"
+            echo "### Release ${REF_NAME}"
             echo ""
-            if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
-              echo "- every gate passed and the tarball was published to npm";
+            if [ -n "${NPM_TOKEN}" ]; then
+              echo "- every gate passed and the tarball was published to npm"
             else
-              echo "- every gate passed; npm publish was skipped (no NPM_TOKEN)";
+              echo "- every gate passed; npm publish was skipped (no NPM_TOKEN)"
             fi
-            echo "- the git source in market/index.json is what the listing installs"
+            echo "- market/index.json pins the git commit, which is what a listing installs"
           } >> "$GITHUB_STEP_SUMMARY"
