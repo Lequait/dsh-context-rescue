@@ -41,7 +41,8 @@
     "e2e-install": "node scripts/run-host-node.mjs scripts/dev/e2e-install.mjs",
     "market-install": "node scripts/run-host-node.mjs scripts/dev/market-install.mjs",
     "boot-check": "node scripts/run-host-node.mjs scripts/dev/boot-check.mjs",
-    "schema-check": "node scripts/run-host-node.mjs scripts/dev/schema-check.mjs"
+    "schema-check": "node scripts/run-host-node.mjs scripts/dev/schema-check.mjs",
+    "awesome": "node scripts/dev/submit-awesome.mjs"
   },
   "dsh": {
     "bundle": {
