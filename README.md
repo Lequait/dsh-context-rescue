@@ -265,6 +265,11 @@ A rescue plugin that silently ignores a typo is indistinguishable from one that 
   failure reported, it retries unchanged instead of folding — the gateway can count more than
   the projection does, and a rewrite there would only cost history.
 - **Never loops.** At most `maxAttemptsPerTurn` rescues per turn, then it steps aside.
+- **Never deletes history.** A fold only appends: every original event stays in the session
+  log, `eventAt(seq)` still resolves it, and only the projection stops containing it. Nothing a
+  rescue hides is gone from the record, so a wrong fold costs you a projection, not the
+  conversation — the log can still be read, replayed, or folded differently next time.
+  `tests/fold.test.js` asserts it.
 - **Never lies.** If nothing foldable exists (a single mega-message, or a pinned head larger
   than the window) it reports that and delegates, so you see the real error.
 - **Never competes.** It does not register the `compaction` service, so a preventive compactor

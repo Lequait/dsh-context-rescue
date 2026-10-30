@@ -147,6 +147,13 @@ where a proxy owns compression.
 - Human commands: `/rescue`, `/rescue status`, `/rescue-status`, registered opportunistically so a
   profile without the command service still gets the automatic rescue.
 
+### Folding never deletes
+
+- A fold only appends. Every original event stays in the session log and `eventAt` still resolves
+  it; only the projection stops containing it. That is the whole rollback story: a wrong fold
+  costs one projection, not the conversation. A test asserts the log keeps every event and the
+  surface keeps none of the folded ones.
+
 ### Verification
 
 - 82 unit tests, including a replay of a real captured session log and of the exact wording from

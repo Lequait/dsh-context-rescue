@@ -180,3 +180,47 @@ test('a first user message that alone overflows is folded too', () => {
   assert.equal(plan.endIdx, 0, 'the small tail stays verbatim');
   assert.ok(plan.retainedTokens < 10_000, 'what is left is small');
 });
+
+test('a fold never removes an event from the log', async () => {
+  const { buildDigest } = await import('../lib/digest.js');
+  const session = new FakeSession();
+  seedConversation(session, { turns: 12, chars: 900 });
+  const ctx = ctxWithMeter();
+  const measurement = measure(ctx, session);
+  const plan = planFold(session, measurement, {
+    retainOptions: [4000],
+    targetTokens: 6000,
+    minFoldTokens: 1000,
+    pinFirstUserMessage: true,
+  });
+  assert.ok(plan, 'a plan should exist');
+
+  const before = session.events.map((event) => event.seq);
+  const shadowed = measurement.nodes
+    .slice(plan.startIdx, plan.endIdx + 1)
+    .map((node) => node.seq);
+  const events = measurement.nodes.map((node) => session.eventAt(node.seq));
+  const text = buildDigest(events.slice(plan.startIdx, plan.endIdx + 1), {
+    reason: 'context-overflow',
+    maxChars: 8000,
+  });
+  applyFold(session, {
+    start: plan.start,
+    end: plan.end,
+    shadowedSeqs: shadowed,
+    shadowedTokenCount: plan.shadowedTokens,
+    text,
+    turn: 3,
+    kind: 'prune',
+  });
+
+  const after = session.events.map((event) => event.seq);
+  assert.deepEqual(after.slice(0, before.length), before, 'every original event is still in the log');
+  assert.ok(after.length > before.length, 'the fold only appended');
+  for (const seq of shadowed) {
+    assert.ok(after.includes(seq), `folded event ${seq} is still readable`);
+    assert.equal(session.eventAt(seq)?.seq, seq, `eventAt(${seq}) still resolves`);
+  }
+  const surfaceSeqs = session.surface.nodes;
+  assert.equal(surfaceSeqs.some((seq) => shadowed.includes(seq)), false, 'they left the surface, not the log');
+});
