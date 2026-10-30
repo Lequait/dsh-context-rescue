@@ -18,10 +18,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 import { buildMarketIndexDoc, checkMarketIndexDoc } from '../lib/market-index.js';
-import { dshAsarCandidates } from './host-paths.mjs';
+import { dshAppExeCandidates, dshAsarCandidates } from './host-paths.mjs';
 
 const SCRIPT_ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -96,7 +96,26 @@ function hostValidator() {
   return import(`file://${file.replaceAll('\\', '/')}`);
 }
 
+/**
+ * The index has to be validated by the host's own parser, and that parser lives inside
+ * `app.asar`, which only Electron's patched `fs` can read. Started by plain `node` on a machine
+ * that has the app installed, this script re-executes itself under the app's Node once, so the
+ * host validator runs instead of being silently skipped. With no app installed it keeps going
+ * and says so.
+ */
+function ensureHostRuntime() {
+  if (process.versions.electron !== undefined || process.env.DSH_PUBLISH_PLAIN === '1') return;
+  const exe = dshAppExeCandidates().find((candidate) => fs.existsSync(candidate));
+  if (exe === undefined) return;
+  const child = spawnSync(exe, [import.meta.filename, ...process.argv.slice(2)], {
+    stdio: 'inherit',
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+  });
+  process.exit(child.status ?? 1);
+}
+
 async function main() {
+  ensureHostRuntime();
   const repoArg = argOf('repo', undefined);
   const dryRun = argOf('dry-run', false) === true;
   let branch = argOf('branch', git(['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }) ?? 'main');
@@ -129,9 +148,14 @@ async function main() {
   // push; an existing repository that really uses 'master' keeps it (the index URL follows).
   const pushTarget =
     typeof pushUrlArg === 'string' ? pushUrlArg : existing !== '' ? existing : repo.pushUrl;
-  const remoteHasBranch =
-    pushTarget === '' ? false : git(['ls-remote', '--heads', pushTarget, branch], { allowFailure: true }) !== '';
-  if (branch === 'master' && !remoteHasBranch) {
+  // `git` returns `undefined` when `ls-remote` fails (no credentials, unreachable host), and
+  // `undefined !== ''` would read that as "the remote has the branch" — the rename would then be
+  // skipped silently on the very first push, which is exactly when it is meant to fire. Rename
+  // only when the answer is a real, empty listing.
+  const remoteHeads = pushTarget === '' ? undefined : git(['ls-remote', '--heads', pushTarget, branch], { allowFailure: true });
+  const remoteHasBranch = typeof remoteHeads === 'string' && remoteHeads.trim() !== '';
+  const remoteReachable = typeof remoteHeads === 'string';
+  if (branch === 'master' && remoteReachable && !remoteHasBranch) {
     if (dryRun) {
       process.stdout.write('would run   git branch -M main (nothing has been pushed yet)\n');
     } else {
@@ -178,7 +202,7 @@ async function main() {
 
   const validator = await hostValidator();
   if (validator === undefined) {
-    process.stdout.write('host validator unavailable (set DSH_APP_ASAR); the local rules still passed\n');
+    process.stdout.write('host validator unavailable (no installed DSH app found); the local rules still passed\n');
   } else {
     validator.parseMarketIndex(doc, indexUrl);
     process.stdout.write('index entry accepted by the host parseMarketIndex\n');
