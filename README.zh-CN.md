@@ -68,10 +68,25 @@ npm run publish:remote -- --repo OWNER/dsh-context-rescue --dry-run
 它会打印解析出的安装 spec（`git+https://…git#<commit>`；加 `--npm` 则是 `name@version`），
 任何一条规则不通过就带 JSON 路径非零退出。校验器位置可用 `DSH_APP_ASAR` 覆盖。
 
-DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `indexes: []`，所以自托管上架只差一步 ——
-把 `market/index.json` 用 HTTP 提供出去，再把这个 URL 加为索引源（Discover 的索引源，或
-`plugin_market` 工具的索引列表）。要进公共索引则得先有仓库：打 `dsh-plugin` topic、
-向 awesome 列表提 PR、以及/或者发布到 npm。
+DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `indexes: []`，所以"能被发现"只差一步。
+
+本仓库已经发布，用户有两条路：
+
+```bash
+# 1. 直接从 git 装 —— 不需要任何市场，钉住你复核过的 commit
+dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-rescue.git#<commit>
+```
+
+```text
+# 2. 通过 Discover 页
+添加索引源   https://github.com/Lequait/dsh-context-rescue/raw/master/market/index.json
+            （Discover → 索引源 / "Add index source"；官方市场 bundle
+             @deepseek-ai/dsh-plugin-market 是可选的，不是每个 profile 都有）
+选中条目     dsh-context-rescue —— 它装的是条目里钉住的 commit，不是分支
+```
+
+仓库同时带了 `dsh-plugin` topic，按 topic 扫描的列表能自动发现它；条目也已投给两个策展列表
+（PR 记录在 `docs/PUBLISH.md`）。
 
 ## 请求发出之前
 

@@ -73,6 +73,18 @@ enough — no token ever has to be typed. SSH needs a key (`ssh-keygen -t ed2551
   reachable, then add that URL as an index source in Discover (the market bundle starts with
   `indexes: []`, so nothing is listed until a source is added).
 
+- Live values for this repository (checked 2026-10-30): index URL
+  `https://github.com/Lequait/dsh-context-rescue/raw/master/market/index.json` (HTTP 200,
+  accepted by the host's `parseMarketIndex`), jsDelivr mirror
+  `https://cdn.jsdelivr.net/gh/Lequait/dsh-context-rescue@master/market/index.json` (HTTP 200),
+  topics already set to `compaction, context-window, deepseek-harness, dsh-plugin, slash-commands`.
+- Two routes for a user, both exercised here: install straight from git
+  (`dsh plugin --profile <p> add git+https://github.com/Lequait/dsh-context-rescue.git#<commit>`,
+  proven by `npm run e2e-install -- --git` and `npm run market-install`), or add the index URL as
+  an index source and install the pinned commit from the Discover page. The official market
+  bundle (`@deepseek-ai/dsh-plugin-market`) is optional — a profile without it still installs
+  from the git spec.
+
 ## 3. Listing pull request
 
 The list is generated from data files, so a submission is **one YAML file**, not a README line:

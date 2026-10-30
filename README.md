@@ -80,10 +80,25 @@ It prints the resolved install spec (`git+https://…git#<commit>`, or `name@ver
 `DSH_APP_ASAR` overrides where the validator is loaded from.
 
 DSH only reads indexes a user configured: the market bundle is optional and ships with
-`indexes: []`, so a self-hosted listing is one discovery away — serve `market/index.json` over
-HTTP and add that URL as an index source (Discover → index sources, or the `plugin_market`
-tool's index list). Publishing to a public index additionally needs the repository to exist:
-tag `dsh-plugin`, open a PR against an awesome list, and/or publish to npm.
+`indexes: []`, so a listing is one discovery away.
+
+This repository is already published, so a user has two routes:
+
+```bash
+# 1. straight from git — works without any marketplace, pin the commit you reviewed
+dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-rescue.git#<commit>
+```
+
+```text
+# 2. through the Discover page
+add the index source    https://github.com/Lequait/dsh-context-rescue/raw/master/market/index.json
+                        (Discover → index sources / "Add index source"; the official market bundle
+                        @deepseek-ai/dsh-plugin-market is optional and not present in every profile)
+pick the entry          dsh-context-rescue — it installs the commit the entry pins, not a branch
+```
+
+The repository also carries the `dsh-plugin` topic so topic-scanning lists pick it up, and the
+entry has been submitted to two curated lists (`docs/PUBLISH.md` records the PRs).
 
 ## Before the request is sent
 
