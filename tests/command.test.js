@@ -151,6 +151,8 @@ test('/rescue-status reports without rewriting even when the session is oversize
   assert.equal(result.kind, 'success');
   assert.match(result.text, /over the fit ratio/);
   assert.match(result.text, /host compaction/);
+  // A person deciding whether to fold should see what the fold would cost.
+  assert.match(result.text, /a rescue would fold \d+ nodes \(seq \d+…\d+, ~[\d,]+ tokens\) into a ~[\d,]+-character summary/);
   assert.equal(session.surface.nodes.length, nodesBefore);
   assert.ok(measure(context, session).totalTokens > 60000);
 });

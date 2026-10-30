@@ -213,7 +213,7 @@ path and the tools.
 | Command | Purpose |
 |---|---|
 | `/rescue` | fold the oldest span now and report the token delta (`/rescue status` reports only) |
-| `/rescue-status` | occupancy, resolved window, whether a fold is possible, and the last attempt |
+| `/rescue-status` | occupancy, resolved window, whether a fold is possible, what a fold would cost right now, and the last attempt |
 
 The registry may mount after this plugin; registration is retried when the service appears.
 Results are one line of text, and a rescue folds through exactly the same code path as the
@@ -387,6 +387,12 @@ Read the plugin's own state instead of guessing. `context_rescue` with
 `measuredTokens`, `window.windowTokens`, `fits`, `foldSupported`, `hostCompaction`,
 `toolResultPruner` and `laneBlocked` for the current session.
 
+While the session is over the window, the report also previews the fold it would perform:
+how many nodes it would replace and their sequence range, how much history that is in
+tokens, how many characters the summary would take, and how much recent history would be
+kept. A status call writes nothing — the preview is the same plan `/rescue` would run,
+computed and then thrown away.
+
 | Symptom | What it means | What to do |
 |---|---|---|
 | No `armed: context-overflow rescue active` line at startup | the host skipped the bundle | check `engines.dsh` against the app version, and that the patch file resolved inside the installed package |
@@ -394,6 +400,7 @@ Read the plugin's own state instead of guessing. `context_rescue` with
 | `laneBlocked: true` | billion-context refused the host's own compaction on this lane | the plugin stays on the zero-model path; set `zeroModelOnly: true` to make that explicit and stop asking |
 | `foldSupported.ok: false` | this session shape does not expose `append`/`surface.nodes`/`eventAt` | a host version mismatch — the plugin refuses to rewrite a projection it cannot re-read |
 | `hostCompaction: absent` | no compaction engine is mounted | harmless: tier 2 is skipped and the zero-model ladder still runs |
+| the preview says a rescue would find nothing to fold | the overshoot is inside the retained tail and no single message explains it | set `pinFirstUserMessage: false`, or raise `retainRatio` so less of the tail is protected |
 | the rescue ran but the request still fails | the payload is still larger than the window | lower `retainRatio`/`retainMaxTokens`, or start a new turn and let the checkpoint carry the gist |
 
 ## Limits

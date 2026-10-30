@@ -177,7 +177,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 | 命令 | 用途 |
 |---|---|
 | `/rescue` | 立刻折叠最旧的一段并报告 token 变化（`/rescue status` 只报告不改写） |
-| `/rescue-status` | 报告占用、解析出的窗口、是否可折叠，以及上一次急救结果 |
+| `/rescue-status` | 报告占用、解析出的窗口、是否可折叠、此刻折叠的代价，以及上一次急救结果 |
 
 命令注册表可能比插件后挂载，插件会在服务出现时补注册。命令结果是一行文本，走的仍是与自动急救完全相同的代码路径，且永不抛异常。
 
@@ -327,6 +327,10 @@ tarball 被当作依赖装进一次性项目，`evaluatePluginCompatibility` 断
 `/rescue-status`，会报出当前会话的 `measuredTokens`、`window.windowTokens`、`fits`、
 `foldSupported`、`hostCompaction`、`toolResultPruner` 与 `laneBlocked`。
 
+当会话确实超出窗口时，这份报告还会**预览**它会怎么折：替换几个节点、序列区间、这段历史有多少
+token、摘要多长、保留多少近期历史。查状态不会写任何东西——预览就是 `/rescue` 会执行的那份计划，
+算出来看一眼就丢掉。
+
 | 现象 | 含义 | 处理 |
 |---|---|---|
 | 启动时没有 `armed: context-overflow rescue active` 这一行 | 宿主跳过了这个 bundle | 核对 `engines.dsh` 与 app 版本，并确认 patch 文件在安装目录里能解析到 |
@@ -334,6 +338,7 @@ tarball 被当作依赖装进一次性项目，`evaluatePluginCompatibility` 断
 | `laneBlocked: true` | billion-context 拒绝了宿主自己的压缩 | 插件会留在零模型路径上；可设 `zeroModelOnly: true` 把这点写明，不再尝试借用 |
 | `foldSupported.ok: false` | 这个会话形状没有 `append`/`surface.nodes`/`eventAt` | 宿主版本不匹配 —— 插件拒绝改写自己读不回来的投影 |
 | `hostCompaction: absent` | 没有挂载压缩引擎 | 无害：第二档跳过，零模型阶梯照常跑 |
+| 预览说 a rescue would find nothing to fold | 超出的部分全在保留的尾部里，且没有单条消息能说明问题 | 设 `pinFirstUserMessage: false`，或调高 `retainRatio` 让更少的尾部被保护 |
 | 救过了但请求仍然失败 | 折叠后仍然超窗 | 调低 `retainRatio`/`retainMaxTokens`，或开新的一轮让检查点接住要点 |
 
 ## 局限

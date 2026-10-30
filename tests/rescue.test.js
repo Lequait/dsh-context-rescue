@@ -168,6 +168,26 @@ test('describeSession reports occupancy and capabilities', async () => {
   assert.equal(info.measurementSource, 'meter');
 });
 
+test('the status preview is built only when a fold would actually happen', async () => {
+  const fitting = new FakeSession();
+  seedConversation(fitting, { turns: 2, chars: 200 });
+  const ctx = fakeContext({ llm: fakeLlm(60000) });
+  const config = resolveConfig({});
+  const fits = await describeSession(ctx, { session: fitting, config, provider: 'p' });
+  assert.equal(fits.preview, null, 'a session that already fits has nothing to preview');
+
+  const oversized = sessionWithLongHistory();
+  const nodesBefore = oversized.surface.nodes.length;
+  const over = await describeSession(ctx, { session: oversized, config, provider: 'p' });
+  assert.equal(over.fits, false);
+  assert.ok(over.preview, 'an oversized session should preview its fold');
+  assert.ok(over.preview.shadowedNodes > 0);
+  assert.ok(over.preview.shadowedTokens > 0);
+  assert.ok(over.preview.digestChars > 0);
+  assert.ok(over.preview.start < over.preview.end);
+  assert.equal(oversized.surface.nodes.length, nodesBefore, 'a preview must not write');
+});
+
 test('observed window from the failure text overrides an optimistic declaration', async () => {
   const session = sessionWithLongHistory(6);
   const ctx = fakeContext({ llm: fakeLlm(1000000) });

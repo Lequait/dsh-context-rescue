@@ -8,6 +8,12 @@ attempt can send. It never needs the model to summarise anything, so it keeps wo
 where a proxy owns compression.
 
 ### Rescue
+- **A fold is previewed before it happens.** `/rescue-status` and `context_rescue`
+  with `action: "status"` now say which nodes a rescue would replace (and their
+  sequence range), how many tokens that is, how long the summary would be and how
+  much recent history would survive. The preview writes nothing; it computes the
+  same plan `/rescue` would execute and throws it away.
+
 - **The request size is measured, not just the surface.** `deriveMessages()` is what
   the provider receives; `/rescue-status` now reports its size next to the surface
   price, and the host gate asserts that after every fold the derived request is
