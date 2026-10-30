@@ -20,13 +20,14 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { eligibility, entryPathFor, entryProblems } from './awesome-plan.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const UPSTREAM = 'awesome-dsh-plugin/awesome-dsh-plugin';
 const REPO = 'Lequait/dsh-context-rescue';
 const BASE = 'main';
 const BRANCH = 'add-dsh-context-rescue';
-const ENTRY_PATH = `data/plugins/${REPO.replace('/', '__')}.yml`;
+const ENTRY_PATH = entryPathFor(REPO);
 const API = 'https://api.github.com';
 
 const dryRun = process.argv.includes('--dry-run');
@@ -86,19 +87,18 @@ async function main() {
 
 	const repo = await api('GET', `/repos/${REPO}`);
 	if (!repo.ok) throw new Error(`cannot read ${REPO}: HTTP ${repo.status}`);
-	const created = Date.parse(repo.body.created_at);
-	const eligibleAt = created + 24 * 60 * 60 * 1000;
-	const now = Date.now();
-	const ageHours = (now - created) / 3600000;
+	const gate = eligibility({ createdAt: repo.body.created_at, topics: repo.body.topics });
+	const entryIssues = entryProblems(entry, REPO);
 
 	console.log(`repository   ${REPO}`);
-	console.log(`created      ${repo.body.created_at} (${ageHours.toFixed(1)} h ago)`);
+	console.log(`created      ${repo.body.created_at} (${Number.isNaN(gate.ageHours) ? '?' : gate.ageHours.toFixed(1)} h ago)`);
 	console.log(`topics       ${(repo.body.topics ?? []).join(', ') || '(none)'}`);
-	console.log(`entry        ${ENTRY_PATH} (${entry.split('\n').length} lines from docs/awesome-entry.yml)`);
+	console.log(`entry        ${ENTRY_PATH} (${entry.split(String.fromCharCode(10)).length} lines from docs/awesome-entry.yml)`);
 
-	const problems = [];
-	if (!(repo.body.topics ?? []).includes('dsh-plugin')) problems.push('the repository has no dsh-plugin topic');
-	if (ageHours < 24) problems.push(`the repository is younger than a day; the listing accepts it from ${new Date(eligibleAt).toISOString()}`);
+	const problems = [
+		...gate.problems.map((problem) => problem.message),
+		...entryIssues.map((issue) => `the entry file would not pass the list's check: ${issue}`),
+	];
 	if (problems.length > 0) {
 		for (const problem of problems) console.error(`refuse: ${problem}`);
 		process.exitCode = 2;

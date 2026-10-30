@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.3 — 2026-10-31
+
+### Fixed
+
+- **`npm run verify` runs the gates as groups.** Sixteen gates had no single entry point; the
+  three groups are `core` (3 gates, 8 s here), `host` (9 gates, 3 min 34 s) and `network`
+  (4 gates, 1 min 30 s), each streamed and summarised, with a non-zero exit when any failed.
+- **The listing rules are tested instead of hoped for.** `scripts/dev/awesome-plan.mjs` holds the
+  clock gate, the `dsh-plugin` topic requirement and the entry-file shape, and
+  `tests/awesome.test.js` (9 tests) drives them: a repository younger than a day is refused with
+  the moment it opens, an entry with a category outside the list or no English description is
+  refused before a pull request exists. `npm run awesome` uses the same functions, so what the
+  test accepts is what the submission sends.
+- **The npm placeholder is deprecated.** `0.0.0-stage` is what staged publishing leaves behind for
+  a newly claimed name and a granular token cannot delete it; it now carries a message pointing at
+  the real version.
+
+### Verification
+
+131 unit tests (128 pass, 3 skipped, 0 fail), 131 under the host's Node (129 pass), type check
+clean, four simulated failure shapes, and the three gate groups above run end to end here.
+
 ## 0.2.2 — 2026-10-31
 
 Six defects found by a read-only review of the runtime code, five of them ways the plugin could
