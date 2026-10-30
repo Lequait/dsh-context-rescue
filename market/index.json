@@ -77,11 +77,11 @@
       "versions": [
         {
           "version": "0.1.0",
-          "publishTimestamp": 1793329030,
+          "publishTimestamp": 1793329074,
           "source": {
             "type": "git",
             "url": "https://github.com/Vashiya/dsh-context-rescue",
-            "commit": "8ed7d831c895a47ea147f63e01645e731bcf768b"
+            "commit": "b29ed7e285576f3332874e9065addb8f05d2aaae"
           },
           "engines": {
             "dsh": ">=0.2.0-rc.1"
