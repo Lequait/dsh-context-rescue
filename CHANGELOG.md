@@ -18,6 +18,11 @@ where a proxy owns compression.
 
 ### Fixed
 
+- File paths in tool arguments were invisible to the checkpoint. The host stores arguments as a
+  JSON text blob, so the tree walk found no path leaves and the "files touched" section stayed
+  empty on exactly the sessions that needed it. Paths are now also read out of the text, with
+  doubled separators collapsed and escape sequences that resemble drive letters rejected.
+
 - A single tool result larger than the window could not be rescued: it is not a text message, so
   T4 skipped it, and dropping it alone would orphan the call that produced it. The call and its
   result are now replaced together, which is the only removal that keeps pairing balanced.

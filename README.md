@@ -101,6 +101,14 @@ pick the entry          dsh-context-rescue — it installs the commit the entry 
 The repository also carries the `dsh-plugin` topic so topic-scanning lists pick it up, and the
 entry has been submitted to two curated lists (`docs/PUBLISH.md` records the PRs).
 
+## What the checkpoint keeps
+
+The digest is written without a model, so it keeps *facts*, not prose: errors and failures,
+the task list, the operations that were run (one line each, repeats collapsed), the user's
+requests, the most recent conclusions -- and the file paths the work touched. Paths are read
+out of tool arguments whether the host stored them as a tree or, as it does in practice, as a
+single JSON text blob; a fold that drops every path leaves the request small and the model lost.
+
 ## Before the request is sent
 
 Waiting for the 400 costs a round trip, and some sessions never recover from one (discussion

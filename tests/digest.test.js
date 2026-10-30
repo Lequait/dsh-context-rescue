@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildDigest } from '../lib/digest.js';
+import { FakeSession } from './fake-session.js';
 
 /** A session-shaped object over a fixed event list. */
 function sessionOf(events) {
@@ -70,4 +71,24 @@ test('a conclusion glued to an echoed call keeps only the statement', () => {
 test('the header is separated from the first section', () => {
   const text = digestOf([user(1, '做一个能跑的插件'), assistant(2, '好')]);
   assert.match(text, /模型可见的压缩投影。\n### /u);
+});
+
+test('file paths survive when the host stores arguments as a JSON string', () => {
+  // The host writes tool arguments as one JSON text blob, so a tree walk finds
+  // no path leaves at all. Paths are the most useful thing to keep across a
+  // fold, so they are read out of the text too -- and an escape sequence that
+  // merely looks like a drive letter is not a path.
+  const text = digestOf([
+    call(1, 'run_code', JSON.stringify({
+      description: 'Run the Lua compile gate',
+      code: "await tools.read({ file_path: 'H:\\\\Projects\\\\Game\\\\tools\\\\luacompile.py' })",
+    })),
+    call(2, 'run_code', JSON.stringify({ command: 'echo T:\\\\n' })),
+    assistant(3, 'ok'),
+  ]);
+
+  assert.match(text, /触及的文件与路径/u);
+  assert.match(text, /luacompile\.py/u);
+  assert.match(text, /H:\\Projects\\Game/u);
+  assert.equal(/T:\\n/u.test(text), false, 'an escape sequence is not a path');
 });

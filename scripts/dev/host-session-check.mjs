@@ -20,10 +20,11 @@ import { loadSessionLog, reconstructSurface } from './session-log.mjs';
 import { allLogsUnder, expandHome } from './replay-session.mjs';
 import { DEFAULTS, mergeConfig } from '../../lib/config.js';
 import { eventsOf, measure, resolveWindow } from '../../lib/measure.js';
+import { collectPaths } from '../../lib/util.js';
 import { applyFold } from '../../lib/fold.js';
 import { pairingCuts, planFold } from '../../lib/plan.js';
 import { preflight } from '../../lib/rescue.js';
-import { buildDigest } from '../../lib/digest.js';
+import { buildDigest, callArguments } from '../../lib/digest.js';
 import { dshAsarCandidates } from '../host-paths.mjs';
 
 /** Load the host's own session implementation out of the app bundle. */
@@ -136,6 +137,29 @@ async function checkOne(Session, SessionId, logPath, config) {
     .join('\n');
   assert.ok(flat.includes('<context-rescue-checkpoint>'), 'the checkpoint message is not in the host history');
 
+  // Fidelity, not just size: a fold that drops every file path the model was
+  // working on leaves the request small and the model lost. Only asserted when
+  // the folded span actually contained tool calls carrying paths.
+  const foldedSeqs = new Set(plan.shadowedSeqs);
+  const spanPaths = [];
+  for (const event of events) {
+    if (!foldedSeqs.has(event.seq)) continue;
+    const content = event?.data?.message?.content ?? event?.data?.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      if (block === null || typeof block !== 'object' || block.type !== 'tool-call') continue;
+      collectPaths(callArguments(block.arguments ?? block.args ?? block.input), spanPaths);
+    }
+  }
+  const uniquePaths = [...new Set(spanPaths)];
+  const keptPaths = uniquePaths.filter((path) => flat.includes(path));
+  if (uniquePaths.length > 0) {
+    assert.ok(
+      keptPaths.length > 0,
+      `the checkpoint kept none of the ${uniquePaths.length} file paths in the folded span`,
+    );
+  }
+
   const after = measure(ctx, session);
   assert.ok(after.totalTokens < before.totalTokens, 'host projection did not get smaller');
 
@@ -193,7 +217,15 @@ async function checkOne(Session, SessionId, logPath, config) {
   const last = eventsOf(session).at(-1);
   assert.equal(last.type, 'compaction/end', `host log does not end with compaction/end (got ${last.type})`);
 
-  return { logPath, before: before.totalTokens, after: after.totalTokens, nodes: hostNodes, preFlight: report.action };
+  return {
+    logPath,
+    before: before.totalTokens,
+    after: after.totalTokens,
+    nodes: hostNodes,
+    preFlight: report.action,
+    pathsInSpan: uniquePaths.length,
+    pathsKept: keptPaths.length,
+  };
 }
 
 async function main() {
@@ -223,6 +255,7 @@ async function main() {
 
   for (const result of folded.slice(0, 5)) {
     console.log(`  ok  ${result.logPath.split(/[\\/]/u).slice(-2)[0]}  ${result.before} → ${result.after} tokens (${result.nodes} nodes)`);
+    if (result.pathsInSpan > 0) console.log(`      ${result.pathsKept}/${result.pathsInSpan} file paths from the folded span survive in the checkpoint`);
   }
   if (folded.length > 5) console.log(`  ok  … and ${folded.length - 5} more logs folded under the host session class`);
   const preFlightFolds = folded.filter((result) => result.preFlight === 'fold').length;
