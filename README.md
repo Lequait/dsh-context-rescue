@@ -50,6 +50,30 @@ plugin's imports, and it declares no host peer dependency to go missing.
 
 Restart the session (or the app) after installing; a host reload is required for a new bundle.
 
+## Marketplace listing
+
+`market/` holds the icon and the generator for a **format-1 plugin market index entry**. The
+entry is validated by the host's own `parseMarketIndex`, i.e. by the same code the Discover page
+uses to read indexes:
+
+```bash
+# validate an entry whose Git source is this repository at a pinned commit
+node scripts/make-market-index.mjs \
+  --repo https://github.com/OWNER/dsh-context-rescue \
+  --commit "$(git rev-parse HEAD)" \
+  --out market/index.json
+```
+
+It prints the resolved install spec (`git+https://…git#<commit>`, or `name@version` with
+`--npm`) and exits non-zero on any violated rule, with the JSON path of the offending value.
+`DSH_APP_ASAR` overrides where the validator is loaded from.
+
+DSH only reads indexes a user configured: the market bundle is optional and ships with
+`indexes: []`, so a self-hosted listing is one discovery away — serve `market/index.json` over
+HTTP and add that URL as an index source (Discover → index sources, or the `plugin_market`
+tool's index list). Publishing to a public index additionally needs the repository to exist:
+tag `dsh-plugin`, open a PR against an awesome list, and/or publish to npm.
+
 ## What it does when a request fails
 
 The listener runs on the `agent/request-error` waterfall, which fires for every failed request
@@ -130,8 +154,14 @@ node --test                          # unit + replay
 node scripts/simulate.js             # three failure scenarios against the real code
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
+# the same suite under the app's own Node, where the host validator is reachable
+npm run test:host
+
 # mount into the installed app's own cordis container and drive one rescue
-ELECTRON_RUN_AS_NODE=1 "<app>/DSH NEXT.exe" scripts/dev/mount-check.mjs
+npm run mount-check
+
+# build + validate a market index entry for this checkout
+npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
 
 The suite covers detection, pairing-safe planning, fold transactions, ladder behaviour, lane

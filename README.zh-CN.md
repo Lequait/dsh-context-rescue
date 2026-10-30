@@ -42,6 +42,27 @@ dsh plugin --profile <profile> add dsh-context-rescue
 配对规则、模型窗口解析全部按宿主的线上结构在本地构造。宿主升级不会打断它的 import，
 它也不声明任何宿主 peer 依赖（也就没有"peer 缺失装不上"这回事）。装完重启一次（新 bundle 需要宿主重载）。
 
+## 上架条目
+
+`market/` 放图标和生成脚本，产出的是**格式 1 的插件市场索引条目**。校验用的是宿主自己的
+`parseMarketIndex` —— 也就是 Discover 页读索引时跑的那套代码：
+
+```bash
+# 校验一条以本仓库某个 commit 作为 Git 源的条目
+node scripts/make-market-index.mjs \
+  --repo https://github.com/OWNER/dsh-context-rescue \
+  --commit "$(git rev-parse HEAD)" \
+  --out market/index.json
+```
+
+它会打印解析出的安装 spec（`git+https://…git#<commit>`；加 `--npm` 则是 `name@version`），
+任何一条规则不通过就带 JSON 路径非零退出。校验器位置可用 `DSH_APP_ASAR` 覆盖。
+
+DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `indexes: []`，所以自托管上架只差一步 ——
+把 `market/index.json` 用 HTTP 提供出去，再把这个 URL 加为索引源（Discover 的索引源，或
+`plugin_market` 工具的索引列表）。要进公共索引则得先有仓库：打 `dsh-plugin` topic、
+向 awesome 列表提 PR、以及/或者发布到 npm。
+
 ## 请求失败之后它做什么
 
 挂在 `agent/request-error` 瀑布上 —— 这条钩子对**任何**失败都会触发，跟宿主给的是什么错误码
@@ -114,8 +135,14 @@ node --test                          # 单测 + 回放
 node scripts/simulate.js             # 三个失效场景跑真实插件代码
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
+# 同一套测试改用 app 自己的 Node 跑，那里才读得到 app.asar 里的宿主校验器
+npm run test:host
+
 # 装进本机 app 自己的 cordis 容器里跑一次真实救援
-ELECTRON_RUN_AS_NODE=1 "<app>/DSH NEXT.exe" scripts/dev/mount-check.mjs
+npm run mount-check
+
+# 为当前 checkout 生成并校验上架条目
+npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
 
 覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算与计量精度。

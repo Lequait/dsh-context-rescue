@@ -12,6 +12,8 @@
     "index.js",
     "lib/",
     "cordis.patch.yml",
+    "market/",
+    "docs/",
     "README.md",
     "README.zh-CN.md",
     "LICENSE"
@@ -22,9 +24,11 @@
   },
   "scripts": {
     "test": "node --test",
+    "test:host": "node scripts/run-host-node.mjs --test",
     "simulate": "node scripts/simulate.js",
-    "mount-check": "node scripts/dev/mount-check.mjs",
-    "inspect": "node scripts/dev/inspect-session.mjs"
+    "mount-check": "node scripts/run-host-node.mjs scripts/dev/mount-check.mjs",
+    "market": "node scripts/run-host-node.mjs scripts/make-market-index.mjs",
+    "inspect": "node scripts/run-host-node.mjs scripts/dev/inspect-session.mjs"
   },
   "dsh": {
     "bundle": {
