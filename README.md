@@ -35,12 +35,18 @@ any of them.
 ## Install
 
 ```bash
+# from this repository
+dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-rescue.git#master
+
 # from a checkout
 dsh plugin --profile <profile> add /path/to/dsh-context-rescue
 
-# once published
+# once published to npm
 dsh plugin --profile <profile> add dsh-context-rescue
 ```
+
+The branch form follows `master`; the market entry instead pins a commit
+(`git+…#<commit>`), so a listing points at a build that cannot move under it.
 
 The plugin declares `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }` and inserts itself
 as `context-rescue`. It imports **no** `@deepseek-ai/*` package at runtime — every host

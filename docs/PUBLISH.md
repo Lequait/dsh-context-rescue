@@ -22,18 +22,19 @@ hosted repository on its own.
 
 ## 1. Create the repository
 
-Either create an empty repository on GitHub (no README, no license — this checkout already has
-both) and then run the one command that does the remaining mechanical work — push, rename the
-branch to `main` if it is still `master`, and pin the market entry to the commit that actually
-landed:
+<https://github.com/Lequait/dsh-context-rescue> exists and carries `master`. The run was:
 
 ```bash
-npm run publish:remote -- --repo OWNER/dsh-context-rescue --dry-run   # print the plan only
-npm run publish:remote -- --repo OWNER/dsh-context-rescue
+npm run publish:remote -- --repo Lequait/dsh-context-rescue --dry-run   # print the plan only
+npm run publish:remote -- --repo Lequait/dsh-context-rescue
 ```
 
-It stops if the work tree is dirty, never stores a credential, and prints the index URL and the
-install spec when it finishes. The equivalent by hand is:
+The branch stayed `master` because that repository was created with `master` as its default, and
+the script only renames when the remote has no such branch at all. A fresh repository without a
+default branch gets `main`.
+
+For a new repository, either create an empty one on GitHub (no README, no license — this checkout
+already has both) and run the same command, or by hand:
 
 ```bash
 cd dsh-context-rescue
@@ -48,9 +49,10 @@ git clone dsh-context-rescue-0.1.0.bundle dsh-context-rescue
 cd dsh-context-rescue && git remote add origin <URL> && git push -u origin main
 ```
 
-Without a token, HTTPS push asks for a username and a **personal access token** as the password;
-SSH needs a key (`ssh-keygen -t ed25519` then add `~/.ssh/id_ed25519.pub` to GitHub). This
-machine currently has neither, and no `gh` CLI.
+Without a token, HTTPS push goes through the git credential helper, whose GitHub OAuth window is
+enough — no token ever has to be typed. SSH needs a key (`ssh-keygen -t ed25519` then add
+`~/.ssh/id_ed25519.pub` to GitHub). This machine has no `gh` CLI, but the DSH bundle's
+`git-credential-manager.exe` was already signed in.
 
 ## 2. Mark it discoverable
 

@@ -30,12 +30,17 @@
 ## 安装
 
 ```bash
+# 直接从本仓库装
+dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-rescue.git#master
+
 # 本地目录
 dsh plugin --profile <profile> add /path/to/dsh-context-rescue
 
-# 发布之后
+# 发布 npm 之后
 dsh plugin --profile <profile> add dsh-context-rescue
 ```
+
+分支形式跟随 `master`；市场条目则是钉死提交（`git+…#<commit>`），列表指向的构建不会在脚下挪动。
 
 包内声明了 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`，以 `context-rescue`
 为 id 插入。**运行时它不 import 任何 `@deepseek-ai/*` 包**：`surfaceOp`、`compaction/*` 事务、
