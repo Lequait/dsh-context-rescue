@@ -177,6 +177,7 @@ What no local gate can supply is the account: no hosted repository, no npm login
 | Type contract | every exported signature and internal shape in `index.js` + `lib/` type-checks under `--checkJs` | `npm run typecheck` → 0 errors over 12 files (`tsconfig.json`) |
 | Publish flow | cloning this checkout, pushing into a bare remote, and pinning the index entry produce a host-accepted entry that points at the code commit | verified by `scripts/dev/publish-rehearse.mjs` (18 assertions, no account needed) |
 | Host Session class | the fold is accepted by the host's own `Session`: appends pass `validateSessionEventData`, the projection is rebuilt by `SurfaceManager`, `deriveMessages()` keeps no orphan tool result, and the bracket closes | verified by `scripts/dev/host-session-check.mjs`: 157 logs seeded, 65 folded twice, 0 failed |
+| Real compaction engine | the plugin can borrow `dsh-compaction-basic` — the engine a stock profile puts in the slot — without taking the slot, without a borrow that silently does nothing counting as a rescue, and without leaving the engine or the session in a broken state when the borrow fails | verified by `scripts/dev/coexist-check.mjs` (14 assertions, real engine, no model) |
 | Real event shapes | surface membership matches `isSurfaceEligibleType` (`tool/call` and `tool/ptc-dispatch` are not surface nodes), and events are read through `snapshotEvents()` because the host `Session` has no `.events` | both properties pinned by the host-session gate above |
 
 ## 5. Real-log evidence

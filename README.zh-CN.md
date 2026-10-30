@@ -168,6 +168,9 @@ npm run install-smoke
 # 用 app 里真实的 Session 类回放本机日志并折叠
 npm run host-session
 
+# 和宿主的真实压缩引擎（compaction-basic）共存跑一次救援
+npm run coexist
+
 # 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
 # （同时钉住分支规则：空远端首次推送改成 main，已有 master 的仓库保持 master）
 npm run publish:rehearse
@@ -188,6 +191,10 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 `SurfaceManager` 构建，断言对象是 `deriveMessages()` —— 也就是下一次请求真正要发的那串消息。
 157 份日志能播种，65 份完成折叠（每份折两次，证明折过的会话还能再折），其余是宿主在孤立进程里
 自己也没法重建的（别的插件的事件投影、或 v4 之前的旧格式）。
+
+`coexist` 把插件挂到**宿主真实的压缩引擎**旁边跑：它加载 app 里的 `@deepseek-ai/dsh-compaction-basic`，
+让引擎自己占住 `compaction` 槽位，然后只给假 `llm`（拿不到模型）。断言的是三件事——插件不抢槽、
+"借了引擎却没缩小投影"不算救回来、以及借失败之后引擎与容器都还完好（再调一次也不炸）。
 
 `mount-check` 是集成闸门：它把插件装进**本机已安装 app** 自带的 cordis 4 容器，因此验证的是
 真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`

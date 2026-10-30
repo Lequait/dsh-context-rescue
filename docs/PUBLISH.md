@@ -13,6 +13,7 @@ Everything that can be built without credentials is already done and green:
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
 | Sweep of every captured session log | `npm run scan` | 157 logs, 31 oversized, 31 rescued, 0 failed |
 | The host's own `Session` class (from the app bundle) | `npm run host-session` | 157 logs seeded, 65 folded, 92 unseedable/skipped, 0 failed |
+| The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Market index entry | `npm run market -- --repo-slug OWNER/dsh-context-rescue` | validated by the host |
 
 What remains needs an authenticated remote: nothing in the list above can create or write to a

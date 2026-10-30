@@ -180,6 +180,7 @@ npm run typecheck                    # JSDoc type contract over index.js and lib
 node scripts/simulate.js             # three failure scenarios against the real code
 npm run scan                         # fold every oversized session log found on this machine
 npm run host-session                 # the same folds through the host's own Session class
+npm run coexist                      # rescue beside the host's real compaction engine
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
 # the same suite under the app's own Node, where the host validator is reachable
@@ -216,6 +217,12 @@ appends are validated by the host's `validateSessionEventData`, the projection i
 next request would carry. 157 logs seed, 65 fold (twice each, to prove a folded session can be
 folded again), and the rest are skipped because the host itself cannot re-seed them in isolation
 (a foreign plugin's message projection, or a pre-v4 log).
+
+`coexist` mounts the plugin beside the host's *real* compaction engine
+(`@deepseek-ai/dsh-compaction-basic`, the one a stock profile puts in the slot) with a fake `llm`
+that cannot summarize, and asserts three things: the plugin does not take the slot, a borrow that
+returns without shrinking the projection is not recorded as a rescue, and both the engine and the
+container are still intact after that borrow fails.
 
 `mount-check` is the integration gate: it loads the plugin into the **installed app's** cordis
 4 container, so it exercises the real `inject`/`Service` wiring and the real
