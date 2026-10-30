@@ -46,6 +46,11 @@ where a proxy owns compression.
   real ones and three logs looked oversized when they already fit.
 
 ### Fixed
+- **A "nothing can save this" verdict outlived its window.** The flag that stops the plugin
+  re-measuring a defeated session was permanent, so switching to a model with a larger window --
+  the obvious move when a session is stuck -- left the plugin still looking away, and the user
+  saw the same failure. The verdict is now tied to the window it was reached under and dropped
+  when that window changes, in both the failure path and the step check.
 - **The status preview stopped at folding.** When nothing could be folded it reported "a rescue
   would find nothing to fold", even though T4 would have excerpted an oversized message — the one
   case where a person most needs to know what is about to happen. The preview now asks the same

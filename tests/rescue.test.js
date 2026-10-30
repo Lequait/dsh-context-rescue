@@ -384,6 +384,28 @@ test('a session that already defeated every tier is not measured again', async (
   assert.ok(meter.calls > callsAfterFirst, 'an explicit /rescue measures once more');
 });
 
+test('a window that grew since the verdict makes the ladder look again', async () => {
+  const session = hopelessSession();
+  const meter = countingMeter();
+  const config = resolveConfig({});
+  const agent = { session };
+
+  const narrow = fakeContext({ llm: fakeLlm(60000), tokenMeter: meter });
+  const giving = await rescue(narrow, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 1 });
+  assert.equal(giving.action, 'pass');
+  assert.equal(rescueStateOf(agent).hopeless, true);
+  const callsAfterGiving = meter.calls;
+
+  // The same session under a model with more room: the old verdict described a
+  // 60k window, and this request is not that request.
+  const wide = fakeContext({ llm: fakeLlm(1_000_000), tokenMeter: meter });
+  const second = await rescue(wide, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 2 });
+  assert.equal(rescueStateOf(agent).hopeless, false, 'the verdict is dropped, not inherited');
+  assert.ok(meter.calls > callsAfterGiving, 'the projection is measured under the new window');
+  assert.equal(second.action, 'retry');
+  assert.match(second.reason, /already fits/u);
+});
+
 test('a successful fold clears the flag', async () => {
   const session = sessionWithLongHistory();
   const ctx = fakeContext({ llm: fakeLlm(60000) });
@@ -431,4 +453,26 @@ test('the derived request is measured when the host can build one', () => {
   assert.equal(derived.messages, 2);
   assert.ok(derived.totalTokens >= 120, `the request must be priced at least by its text: ${derived.totalTokens}`);
   assert.ok(derived.totalTokens < measure(ctx, session).totalTokens + 1000, 'the two prices stay in the same order of magnitude');
+});
+
+test('pre-flight stops ignoring a session once the window grows', async () => {
+  const session = hopelessSession();
+  const meter = countingMeter();
+  const config = resolveConfig({});
+  const agent = { session };
+
+  const narrow = fakeContext({ llm: fakeLlm(60000), tokenMeter: meter });
+  await rescue(narrow, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 1 });
+  assert.equal(rescueStateOf(agent).hopeless, true);
+
+  const callsAfterGiving = meter.calls;
+  const ignored = await preflight(narrow, { agent, session, config, turn: 1, provider: 'p' });
+  assert.equal(ignored.action, 'pass');
+  assert.match(ignored.reason, /defeated every tier/u);
+  assert.equal(meter.calls, callsAfterGiving, 'nothing is measured while the window is unchanged');
+
+  const wide = fakeContext({ llm: fakeLlm(1_000_000), tokenMeter: meter });
+  await preflight(wide, { agent, session, config, turn: 2, provider: 'p' });
+  assert.equal(rescueStateOf(agent).hopeless, false, 'the verdict does not survive a window change');
+  assert.ok(meter.calls > callsAfterGiving, 'a bigger window earns a real measurement');
 });
