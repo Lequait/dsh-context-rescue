@@ -218,7 +218,7 @@ npm run e2e-install
 # 同上，但装的是已发布的 git spec（真实网络路径）
 npm run e2e-install -- --git
 # 拉线上市场索引，交给宿主解析，再装它给出的 spec（Discover 页走的同一条路）
-npm run boot-check                   # 真的启动一次应用（一次性 profile）：apply() 到底有没有被执行
+npm run boot-check                   # 真的启动应用：apply() 被执行吗，且能否与占用压缩车道的插件同一个 profile 共存
 npm run market-install
 
 # 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
@@ -242,11 +242,13 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 162 份日志能播种，65 份完成折叠（每份折两次，证明折过的会话还能再折），其中 30 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
 自己也没法重建的（别的插件的事件投影、或 v4 之前的旧格式）。
 
-`boot-check` 再高一层：它真的启动应用。它从出厂 `headless` 模板建两个一次性 profile ——
+`boot-check` 再高一层：它真的启动应用。它从出厂 `headless` 模板建三个一次性 profile ——
 第一个装的是**故意在 `apply()` 里抛错**的副本，断言宿主把这个错误挂在它自己插入的那个条目名下
 （`context-rescue (dsh-context-rescue)`）；这一步是反证，否则"跑绿了、没报错"什么都不能说明。
 第二个装真包，断言启动能走过挂载、没有任何指向本插件的错误，并停在模型调用处（没有 API key 的机器就停在那里）。
-两个 profile 用完即删。它证明的是"装得上、挂得住"，不证明"能推理"。
+第三个把 `billion-context`（某些机器上占着压缩车道的代理）和本插件装进同一个 profile 再启动一次，
+于是"能和车道持有者并排工作"是被测出来的，而不是被假设的。
+三个 profile 用完即删。它证明的是"装得上、挂得住"，不证明"能推理"。
 
 `coexist` 把插件挂到**宿主真实的压缩引擎**旁边跑：它加载 app 里的 `@deepseek-ai/dsh-compaction-basic`，
 让引擎自己占住 `compaction` 槽位，然后只给假 `llm`（拿不到模型）。断言的是三件事——插件不抢槽、

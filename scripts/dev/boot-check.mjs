@@ -31,6 +31,7 @@ import { dshAppExeCandidates, dshAsarCandidates } from '../host-paths.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PROBE_PROFILE = `rescue-boot-probe-${Date.now().toString(36)}`;
 const REAL_PROFILE = `rescue-boot-${Date.now().toString(36)}`;
+const PAIRED_PROFILE = `rescue-boot-pair-${Date.now().toString(36)}`;
 const BOOT_TASK = 'reply with the single word ok';
 
 let assertions = 0;
@@ -113,6 +114,7 @@ async function main() {
   const profilesDir = join(process.env.DSH_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.dsh'), 'profiles');
   const probeDir = join(profilesDir, PROBE_PROFILE);
   const realDir = join(profilesDir, REAL_PROFILE);
+  const pairedDir = join(profilesDir, PAIRED_PROFILE);
 
   try {
     // 1. Positive control: a bundle that throws from apply() must be reported
@@ -159,11 +161,40 @@ async function main() {
       'the boot proceeded past mounting to the model stage (this gate is about mounting)',
     );
 
+    // 3. The same bundle next to the proxy that owns the compression lane on
+    //    some machines. What can go wrong here is composition, so the
+    //    assertions are about the composed tree and about a boot that reports
+    //    no error of its own.
+    makeProfile(app, PAIRED_PROFILE);
+    const laneOwner = cli(app, ['plugin', '--profile', PAIRED_PROFILE, 'add', 'billion-context@0.1.209']);
+    if (laneOwner.status !== 0) {
+      console.log('  skip the billion-context pairing (it could not be installed from this network)');
+    } else {
+      addPlugin(app, PAIRED_PROFILE, join(realStage, realTarball));
+      const dump = cli(app, ['--profile', PAIRED_PROFILE, '--dump-config']);
+      const tree = String(dump.stdout ?? '');
+      const gateIndex = tree.indexOf('name: billion-context/dsh-compaction-gate');
+      const oursIndex = tree.indexOf('- id: context-rescue');
+      ok(gateIndex !== -1, 'the compression lane owner composes into the profile');
+      ok(oursIndex !== -1, 'the rescue plugin composes into the same profile');
+      ok(oursIndex > gateIndex, 'the rescue plugin composes after the lane owner');
+      const pairedOutput = boot(app, PAIRED_PROFILE);
+      ok(
+        !pairedOutput.includes('context-rescue (dsh-context-rescue)'),
+        'the bundle mounts next to billion-context without an error of its own',
+      );
+      ok(
+        /MISSING_CREDENTIAL|no API key|answer/u.test(pairedOutput),
+        'the paired boot proceeded past mounting to the model stage',
+      );
+    }
+
     console.log(`boot check: ${assertions} assertions`);
   } finally {
     removeDir(probeDir);
     removeDir(realDir);
-    for (const dir of [probeDir, realDir]) {
+    removeDir(pairedDir);
+    for (const dir of [probeDir, realDir, pairedDir]) {
       if (existsSync(dir)) console.log(`boot check warning: ${dir} could not be removed`);
     }
   }

@@ -73,8 +73,10 @@ where a proxy owns compression.
   65 of them in-process (30 of those through the pre-flight path, with no failed request first): every append is validated by the host's `validateSessionEventData`, the
   projection by its `SurfaceManager`, and the derived history never keeps an orphan tool result.
 - The real application boots with the bundle installed: a copy whose `apply()` throws is reported by
-  the host under the plugin's own entry (so a silent skip cannot pass as success), and the real
-  package boots past mounting with no error of its own.
+  the host under the plugin's own entry (so a silent skip cannot pass as success), the real package
+  boots past mounting with no error of its own, and it still mounts after `billion-context` — the
+  proxy that owns the compression lane on some machines — is installed into the same profile
+  (18 assertions, three throwaway profiles removed).
 - The app's own CLI (`dsh plugin --profile <name> add <tarball>`) installs the packed tarball into
   a real profile, which then depends on the plugin and lists its bundle; the host loader resolves
   the patch from inside that profile (10 assertions, throwaway profile removed).
