@@ -37,9 +37,11 @@ look like it worked while doing nothing, or do something irreversible for the wr
 
 ### Verification
 - 122 unit tests (119 pass, 3 skipped, 0 fail), 122 under the host's Node (120 pass), type check
-  clean, four simulated failure scenarios, and the two real-log sweeps at 200 logs: 69 folded under
-  the host's own `Session` class (31 of them pre-flight) and 33 rescued by the full ladder, 0
-  failures in both.
+  clean in 14 files, four simulated failure scenarios, 26 assertions inside the installed host's
+  cordis container, and the two real-log sweeps at 200 logs: 69 folded under the host's own
+  `Session` class (31 of them pre-flight) and 33 rescued by the full ladder, 0 failures in both.
+- Session-log counts in the older sections are the numbers as measured on the day of that release;
+  the machine keeps writing sessions, so they are snapshots, not constants.
 
 ## 0.2.1 — 2026-10-31
 
@@ -59,8 +61,8 @@ look like it worked while doing nothing, or do something irreversible for the wr
   while the two that installed looked green.
 
 ### Evidence refreshed
-- Session-log counts re-measured on the development machine: 196 logs, 33 oversized, 33 rescued,
-  0 failed; the host's own `Session` class seeds 196, folds 65 (31 of them pre-flight), 0 failed.
+- Session-log counts re-measured on the development machine: 200 logs, 33 oversized, 33 rescued,
+  0 failed; the host's own `Session` class seeds 200, folds 69 (31 of them pre-flight), 0 failed.
 
 ## 0.2.0 — 2026-10-31
 

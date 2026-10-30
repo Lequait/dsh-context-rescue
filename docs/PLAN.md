@@ -65,7 +65,7 @@ Gate: all six mechanisms confirmed in shipped type declarations and source → *
   the target against the window the failure *observed*, not the one the adapter declared;
 - user-supplied `extraPatterns`, which extend detection without ever disabling the built-ins.
 
-Gate: 8 tests, including the exact wording from #10138 and a "numbers alone do not trigger"
+Gate: 10 tests in `tests/overflow.test.js`, including the exact wording from #10138 and a "numbers alone do not trigger"
 negative → **passed**.
 
 ### Phase C — Rescuing fold (done)
@@ -85,15 +85,21 @@ negative → **passed**.
   replacement and its pricing event, and a bracket-closing `compaction/end{error}` if the
   replacement throws.
 
-Gate: 6 tests plus a replay against four real session logs → **passed**.
+Gate: `tests/fold.test.js` (10 tests) plus the replay in `tests/replay-real-log.test.js` → **passed**.
 
 ### Phase D — Ladder and budget (done)
 
 `lib/rescue.js` escalates and stops:
 
 - **T1** prune tool output through whatever pruner the host exposes;
-- **T2** ask the host's own compaction engine (`compactIfNeeded(agent, 'context-overflow')`);
-- **T3** mechanical fold, no model required.
+- **T2** ask the host's own compaction engine (`compactIfNeeded(agent, 'context-overflow', signal)`);
+- **T3** mechanical fold, no model required;
+- **T4** head-and-tail excerpt of a single message that folding around it would leave behind
+  (only text messages whose removal keeps tool pairing balanced, and never the system prompt).
+
+`mode` decides how much of that runs: `auto` is the whole ladder, `fold` is the same ladder with
+T2 removed — so a profile that must never ask a model to summarise still gets T1, T3 and T4 — and
+`diagnose` detects and reports without rewriting anything.
 
 A lane refusal (`dsh_compaction_refused`, `bili owns compression`) marks T2 permanently
 blocked for the process, so the next failure jumps straight to T3 instead of re-asking a
@@ -104,9 +110,9 @@ larger than the window is folded before the loop builds the request (T1 then T3;
 the host's own pressure hook so one overshoot is never compacted twice), while the pressure band
 is left untouched because that is ordinary compaction policy.
 
-Gate: 8 tests, including "the host engine is called exactly once, then never again" and
-"per-turn budget" → **passed**. Pre-flight: 6 more tests plus two assertions inside the real
-cordis mount → **passed**.
+Gate: the ladder suite in `tests/rescue.test.js`, including a lane refusal that is remembered instead of
+re-asking the engine and the per-turn budget → **passed**. Pre-flight: 7 more tests plus three
+assertions inside the real cordis mount → **passed**.
 
 ### Phase E — Operator surface (done)
 
@@ -196,8 +202,8 @@ and publish rehearsal first, then a tag/version equality guard, then `--provenan
 | Bundle patch | `cordis.patch.yml` parses and resolves through the host's own loader | verified: `bundlePatchPaths` + `loadOverlayPatches` returned the expected insert entry |
 | Manifest compatibility | host `evaluatePluginCompatibility` accepts the manifest, and rejects 0.1.x | verified: compatible on `0.2.1-rc.3`, `{"engines.dsh":">=0.2.0-rc.1"}` unmet on `0.1.5-rc.2` |
 | Market index entry | the generated entry passes the host's own `parseMarketIndex` and yields a commit-pinned install spec | verified: `parseMarketIndex` + `marketInstallTarget` on `0.2.1-rc.3` |
-| Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (25 assertions) |
-| Pre-flight fold | a projection already larger than the window is folded on the real `agent/pre-step` waterfall before the request is built, the loop's decision comes back untouched, and the pressure band is left to the host | verified by `tests/preflight.test.js` (7 tests) and `scripts/dev/mount-check.mjs` §7 (2 assertions) |
+| Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (26 assertions) |
+| Pre-flight fold | a projection already larger than the window is folded on the real `agent/pre-step` waterfall before the request is built, the loop's decision comes back untouched, and the pressure band is left to the host | verified by `tests/preflight.test.js` (7 tests) and `scripts/dev/mount-check.mjs` §7 (3 assertions) |
 | Human commands | the host's own `CommandRuntime` lists `/rescue` and `/rescue-status`, executes them, and logs `command/run` + `command/done` | verified by `scripts/dev/mount-check.mjs` §6 (8 assertions) |
 | Installed the way a user installs it | `dsh plugin --profile <name> add <tarball>` — the app's own CLI, forwarding to pnpm in a real profile — produces a profile that depends on and enables the plugin, and the host loader resolves the patch inside it | verified by `scripts/dev/e2e-install.mjs` (10 assertions, throwaway profile removed afterwards) |
 | Installed from the published spec | The line in the README — `dsh plugin --profile <name> add git+https://github.com/Lequait/dsh-context-rescue.git#<ref>` — installs from GitHub, records the git spec, and lands in the profile bundle list | verified by `npm run e2e-install -- --git` (11 assertions) |
@@ -207,12 +213,12 @@ and publish rehearsal first, then a tag/version equality guard, then `--provenan
 | Publish flow | cloning this checkout, pushing into a bare remote, and pinning the index entry produce a host-accepted entry that points at the code commit | verified by `scripts/dev/publish-rehearse.mjs` (18 assertions, no account needed) |
 | Real app boot | the installed bundle really mounts: `apply()` runs in the running app, a planted throw surfaces under the plugin's own entry, and it still mounts in a profile whose composition already has the compression-lane owner | `npm run boot-check` (33 assertions, five throwaway profiles, all removed; the web shape is also started and asked to serve the UI) |
 | Digest readability | the checkpoint a model actually receives names what each tool call was for, collapses repeats to one line plus a count, keeps harness plumbing (runtime snapshots, skill catalogues, memory projections, time samples) out of the intent list, and states a goal restated every round once | `tests/digest.test.js` (8 tests), `scripts/dev/digest-preview.mjs` prints the digest of the largest captured log for reading |
-| Model-facing tools | Each of the three tools is exercised end to end: status is read-only, rescue folds and reports the delta, the manual fold closes its transaction with no turn number, and a call with no session returns an error object | `tests/tools.test.js` (8 tests) |
+| Model-facing tools | Each of the three tools is exercised end to end: status is read-only, rescue folds and reports the delta, the manual fold closes its transaction with no turn number, and a call with no session returns an error object | `tests/tools.test.js` (9 tests) |
 | Fold preview | A status call names the span a fold would replace, its cost and what would be kept, and writes nothing | `tests/rescue.test.js` (1 test) + `tests/command.test.js` (assertion) |
 | The request the host would send | After each fold the derived request must shrink and fit, not just the surface price; `/rescue-status` reports both numbers | `scripts/dev/host-session-check.mjs` (2 assertions per folded log) + `tests/command.test.js` |
 | A session nothing can rescue | Tiers are attempted once, then the session is remembered and not re-measured; `/rescue` forces another attempt | `tests/rescue.test.js` (3 new tests) |
 | Path fidelity | the checkpoint keeps at least one file path from the folded span, so the model still knows what the work touched; asserted on the host's own projections | `scripts/dev/host-session-check.mjs` (per folded log; `tests/digest.test.js`) |
-| A verdict tied to its window | a session that gave up is measured again when the resolved window changed, in both the failure path and the step check; the same window still short-circuits | `tests/rescue.test.js` (window growth reopens; unchanged window does not measure) |
+| A verdict tied to its window | a session that gave up is measured again when the resolved window changed or the history it gave up on has grown since, in both the failure path and the step check; the same window and shape still short-circuits | `tests/rescue.test.js` (window growth reopens; unchanged window does not measure) |
 | Status preview covers the excerpt tier | `/rescue-status` names the span a fold would take, and when folding is impossible it names the message that would be excerpted instead of saying nothing can be done | `tests/command.test.js` (preview must not rewrite; excerpt case asserted) |
 | No history is lost | a fold appends: every original event stays in the log and stays resolvable, and leaves only the projection | `tests/fold.test.js` (`a fold never removes an event from the log`) |
 | Config schema | the options are declared as a Schemastery graph, so the host validates a patch before the plugin starts and `--dump-config-schema` documents them; an out-of-range value stops the boot with the field and its bound | `tests/schema.test.js` (8 tests) + `npm run schema-check` (11 assertions against the installed app) |
@@ -223,7 +229,7 @@ and publish rehearsal first, then a tag/version equality guard, then `--provenan
 | Crash-leftover transaction | a dangling `compaction/start` from an earlier turn is closed before planning, so a session that died mid-fold is foldable again; one from the current turn is left alone | `tests/repair.test.js` (5 tests) |
 | Pre-flight cost | the pre-step hook measures a turn once and then only counts what was appended, so a long turn does not re-price the whole projection at every step; a large paste or a foreign fold forces a real measurement | `tests/preflight.test.js` (`countingMeter`: 3 tests), `scripts/dev/rescue-bench.mjs` prints cold/warm timings for the largest captured logs |
 | Oversized first message | a session whose first user message alone is over the window is folded rather than declared unfoldable | `tests/fold.test.js` (2 tests), `tests/rescue.test.js` (1 test) |
-| Host Session class | the fold is accepted by the host's own `Session`: appends pass `validateSessionEventData`, the projection is rebuilt by `SurfaceManager`, `deriveMessages()` keeps no orphan tool result, and the bracket closes | verified by `scripts/dev/host-session-check.mjs`: 196 logs seeded, 65 folded twice, 31 of them also through the pre-flight path, 0 failed |
+| Host Session class | the fold is accepted by the host's own `Session`: appends pass `validateSessionEventData`, the projection is rebuilt by `SurfaceManager`, `deriveMessages()` keeps no orphan tool result, and the bracket closes | verified by `scripts/dev/host-session-check.mjs`: 200 logs seeded, 69 folded twice, 31 of them also through the pre-flight path, 131 skipped by the host itself, 0 failed |
 | Real compaction engine | the plugin can borrow `dsh-compaction-basic` — the engine a stock profile puts in the slot — without taking the slot, without a borrow that silently does nothing counting as a rescue, and without leaving the engine or the session in a broken state when the borrow fails | verified by `scripts/dev/coexist-check.mjs` (14 assertions, real engine, no model) |
 | Real event shapes | surface membership matches `isSurfaceEligibleType` (`tool/call` and `tool/ptc-dispatch` are not surface nodes), and events are read through `snapshotEvents()` because the host `Session` has no `.events` | both properties pinned by the host-session gate above |
 | A compactor that overrides the engine | `dsh-smart-compact@0.5.3` replaces `compactIfNeeded(agent, trigger, signal)` on top of `dsh-compaction-basic`: non-pressure triggers go to the base engine, a pending `new_context` request bypasses the pressure bands, refusals resolve `null`. The borrow therefore uses that exact signature, treats `null` as "nothing shrank", and never latches `laneBlocked` on an engine bug | override read from the published tarball; the `null` path is covered by `a borrowed engine that changes nothing…`, the throwing path by `a host engine that throws for its own reasons…` |
@@ -278,7 +284,7 @@ declared one, the ladder reaches the zero-model tier, the projection ends up und
 are balance-safe, the transaction bracket closes, and the replacement carries
 `source.kind === 'compact-checkpoint'`. Every log that is oversized is rescued and none fail. Logs that are empty or already
 fit are skipped rather than failed — the sweep (`node scripts/dev/scan-sessions.mjs`) currently
-reports `196 logs · 33 rescued · 0 failed` on this machine. The table above is the earlier pass
+reports `200 logs · 33 rescued · 167 skipped · 0 failed` on this machine. The table above is the earlier pass
 that the sweep was built from: it lists 34 logs, because at that point `tool/call` and
 `tool/ptc-dispatch` were still counted as surface nodes, so three logs that only looked oversized
 were already inside the window; with an exact surface the count fell to 31, and it rose to 32

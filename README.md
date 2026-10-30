@@ -120,10 +120,11 @@ runs, the request is still attempted, and the failure is passed through
 unchanged. `/rescue` (or `context_rescue` with `action: "rescue"`) always tries
 once more, and any rescue that does work reopens the normal path.
 
-That verdict belongs to the window it was reached under, not to the session forever:
-switching to a model with more room drops it and the session is measured again, in
-both the failure path and the step check. Otherwise changing models -- the obvious
-thing to try when a session is stuck -- would keep the plugin looking away.
+That verdict belongs to the window and the shape of the history it was reached under, not to the
+session forever: switching to a model with more room, or a projection that has grown since, drops
+it and the session is measured again, in both the failure path and the step check. Otherwise
+changing models -- the obvious thing to try when a session is stuck -- would keep the plugin
+looking away.
 
 ## What the checkpoint keeps
 

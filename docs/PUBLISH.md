@@ -4,16 +4,16 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + repair + trim + tools + commands + schema + market rules | `npm test` | 115 tests, 112 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 115 tests, 113 pass, 2 skipped |
+| Unit + fold + rescue + repair + trim + tools + commands + schema + market rules | `npm test` | 122 tests, 119 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 122 tests, 120 pass, 2 skipped |
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 14 files |
 | Four failure scenarios | `npm run simulate` | all pass |
-| Mount in the installed host's cordis 4 | `npm run mount-check` | 25 assertions pass |
+| Mount in the installed host's cordis 4 | `npm run mount-check` | 26 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
-| Sweep of every captured session log | `npm run scan` | 196 logs, 33 oversized, 33 rescued, 0 failed |
+| Sweep of every captured session log | `npm run scan` | 200 logs, 33 oversized, 33 rescued, 167 skipped, 0 failed |
 | The real application boots and mounts the bundle | `npm run boot-check` | 33 assertions: a planted throw is reported under the plugin entry, the real package mounts without one, it still mounts next to `billion-context` (lane owner) and next to `dsh-smart-compact` (engine overrider), it composes into the `web` shape the desktop app runs (same tree as the bundle that renders commands), and that host is then started for real: it prints its URL, hands out the auth cookie, and serves the UI document |
-| The host's own `Session` class (from the app bundle) | `npm run host-session` | 196 logs seeded, 65 folded (31 via pre-flight), 131 unseedable/skipped, 0 failed |
+| The host's own `Session` class (from the app bundle) | `npm run host-session` | 200 logs seeded, 69 folded (31 via pre-flight), 131 unseedable/skipped, 0 failed |
 | Cost of a rescue and of the pre-step check | `node scripts/dev/rescue-bench.mjs` | rescue median 1.1 s, p95 7.9 s over the 19 largest captured logs (most of it is loading the log); pre-flight median cold 16 ms, warm 0 ms — the second check in a turn does not re-measure |
 | The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Installed the way a user installs it | `npm run e2e-install` | 10 assertions: `dsh plugin --profile … add <tarball>` creates the profile, switches the bundle on, and the host loader resolves the patch from it; the profile is removed afterwards |
@@ -25,7 +25,7 @@ Everything that can be built without credentials is already done and green:
 What remains needs an authenticated remote: nothing in the list above can create or write to a
 hosted repository on its own.
 
-The log-derived counts (`196 logs`, `33 rescued`, `65 folds`, `131 skipped`) and the bench
+The log-derived counts (`200 logs`, `33 rescued`, `69 folds`, `131 skipped`) and the bench
 timings below are a snapshot of this development machine: they move as sessions are captured, and
 `scan`, `host-session` and `rescue-bench` recompute them.
 
@@ -54,7 +54,7 @@ git push -u origin main
 …or, if the repository was created from elsewhere, push this bundle instead of a working copy:
 
 ```bash
-git clone dsh-context-rescue-0.2.1.bundle dsh-context-rescue
+git clone dsh-context-rescue-0.2.2.bundle dsh-context-rescue
 cd dsh-context-rescue && git remote add origin <URL> && git push -u origin main
 ```
 
@@ -66,10 +66,10 @@ enough — no token ever has to be typed. SSH needs a key (`ssh-keygen -t ed2551
 ## 2. Mark it discoverable
 
 - Repository topic: `dsh-plugin` (this is the topic the ecosystem's listings scan for).
-- `publish:remote` already regenerated and pushed `market/index.json`; regenerate it by hand only
-  when you want a listing to point at a newer build. The file is committed, so a fresh checkout
-  already contains it; `.gitignore` lists it only because `publish:remote` rewrites it on every
-  push, and the committed copy must always pin a commit that exists:
+- `publish:remote` already regenerated and pushed `market/index.json`; regenerate it by hand once a
+  release is pushed, so a listing does not keep offering the previous build. The file is committed,
+  so a fresh checkout already contains it; `.gitignore` lists it only because `publish:remote`
+  rewrites it on every push, and the committed copy must always pin a commit that exists:
 
   ```bash
   npm run market -- --repo-slug OWNER/dsh-context-rescue --out market/index.json
@@ -120,7 +120,7 @@ Requirements that apply to this repo, checked against the guide on 2026-10-30:
 | --- | --- |
 | `dsh.bundle` manifest in `package.json` | present (`bundle.patch`) |
 | [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic | set on `Lequait/dsh-context-rescue` |
-| real, working code | 115 tests, ninth host-side gate |
+| real, working code | 122 tests, ninth host-side gate |
 | repo at least **1 day old** | created 2026-10-30T10:28Z, so submit no earlier than 2026-10-31T10:28Z |
 | description states function only | no superlatives; every claim above maps to `lib/` |
 
@@ -164,7 +164,7 @@ the install smoke and the publish rehearsal first, refuses a tag that disagrees 
 `package.json`, and publishes with provenance:
 
 ```bash
-git tag v0.2.1 && git push origin v0.2.1   # needs the NPM_TOKEN repository secret
+git tag v0.2.2 && git push origin v0.2.2   # needs the NPM_TOKEN repository secret
 ```
 
 The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/icon.svg`, `docs/`, both

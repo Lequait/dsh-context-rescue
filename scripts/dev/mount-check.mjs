@@ -235,6 +235,15 @@ const preSession = new FakeSession();
 seedConversation(preSession, { turns: 24, chars: 9000 });
 const preAgent = { session: preSession, id: 'pre-flight' };
 const preNodes = preSession.surface.nodes.length;
+
+// A second listener on the same event: the real host has one
+// (dsh-session-checkpoint-policy), and a plugin that swallows the chained call
+// would silently disable it.
+let neighbourCalls = 0;
+root.on('agent/pre-step', async (payload, next) => {
+  neighbourCalls += 1;
+  return next();
+});
 const preDecision = await root.waterfall(
   'agent/pre-step',
   { agent: preAgent, messages: [], turn: 9, step: 1, signal: new AbortController().signal },
@@ -246,6 +255,7 @@ check(
   preSession.surface.nodes.length < preNodes,
   `${preNodes} → ${preSession.surface.nodes.length}`,
 );
+check('a neighbouring pre-step listener still runs', neighbourCalls === 1, `${neighbourCalls} call(s)`);
 
 process.stdout.write(failures.length === 0 ? '\nload test passed\n' : `\nload test failed: ${failures.join(', ')}\n`);
 process.exitCode = failures.length === 0 ? 0 : 1;
