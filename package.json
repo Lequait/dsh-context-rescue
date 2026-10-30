@@ -61,5 +61,13 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lequait/dsh-context-rescue.git"
+  },
+  "homepage": "https://github.com/Lequait/dsh-context-rescue#readme",
+  "bugs": {
+    "url": "https://github.com/Lequait/dsh-context-rescue/issues"
   }
 }
