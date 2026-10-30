@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.1 — 2026-10-31
+
+### Config schema
+- Every option is declared as a Cordis/Schemastery schema (`lib/schema.js`, exported as `Config`),
+  so the host validates a profile patch before the plugin starts and documents the options in
+  `--dump-config-schema`. An out-of-range value now stops the boot with the field and its bound
+  (`$.retainRatio expected number <= 0.6 but got 5`) instead of being clamped in silence. Unknown
+  keys are still passed through so the mount-time `config:` warning can name a typo.
+- New gate `npm run schema-check`: 11 assertions against the installed app (the dump projects this
+  entry onto one of its own config defs, the def lists the knobs, a bad patch fails the boot, a good
+  patch boots past configuration).
+
+### Evidence refreshed
+- Session-log counts re-measured on the development machine: 196 logs, 33 oversized, 33 rescued,
+  0 failed; the host's own `Session` class seeds 196, folds 65 (31 of them pre-flight), 0 failed.
+
 ## 0.2.0 — 2026-10-31
 
 Everything below shipped after 0.1.0 went public (repository and market index).

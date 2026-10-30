@@ -50,7 +50,7 @@ git push -u origin main
 …or, if the repository was created from elsewhere, push this bundle instead of a working copy:
 
 ```bash
-git clone dsh-context-rescue-0.2.0.bundle dsh-context-rescue
+git clone dsh-context-rescue-0.2.1.bundle dsh-context-rescue
 cd dsh-context-rescue && git remote add origin <URL> && git push -u origin main
 ```
 
@@ -159,7 +159,7 @@ the install smoke and the publish rehearsal first, refuses a tag that disagrees 
 `package.json`, and publishes with provenance:
 
 ```bash
-git tag v0.2.0 && git push origin v0.2.0   # needs the NPM_TOKEN repository secret
+git tag v0.2.1 && git push origin v0.2.1   # needs the NPM_TOKEN repository secret
 ```
 
 The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/`, `docs/`, both READMEs and
