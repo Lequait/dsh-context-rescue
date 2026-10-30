@@ -170,6 +170,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 | `registerTools` | `true` | 是否注册上述三个工具 |
 | `registerCommands` | `true` | 宿主有命令注册表时是否注册 `/rescue` 与 `/rescue-status` |
 | `preflight` | `true` | 投影已超窗时在 `agent/pre-step` 就地折叠 |
+| `repairTransactions` | `true` | 关掉崩溃留下的半截压缩事务；悬空的 start 会让之后每一次折叠都被拒绝 |
 | `verbose` | `true` | 把急救决策写进会话日志 |
 
 ### 配置写错会被告知，而不是被吞掉

@@ -193,6 +193,7 @@ All keys are optional; pass them through the plugin's config block.
 | `registerTools` | `true` | register the three tools |
 | `registerCommands` | `true` | register `/rescue` and `/rescue-status` when the host has a command registry |
 | `preflight` | `true` | fold on `agent/pre-step` when the projection is already over the window |
+| `repairTransactions` | `true` | close a compaction bracket a crash left open; a dangling one blocks every later fold |
 | `verbose` | `true` | log rescue decisions to the session |
 
 ### Configuration mistakes are reported, not swallowed

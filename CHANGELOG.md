@@ -24,6 +24,15 @@ where a proxy owns compression.
   folded like anything else, and the digest says so, because keeping it would keep every request
   failing.
 
+### Self-healing
+
+- A fold is a bracket (`compaction/start` … `compaction/end`) written inside one turn, and a
+  process that dies in between leaves it open. A dangling start makes the planner refuse every
+  later fold -- correctly, because it cannot tell a half-written fold from a live one -- so that
+  session could never be rescued again. A leftover bracket from an *earlier* turn is now closed
+  with an explanatory `error` before planning; one opened in the current turn is never touched.
+  `/rescue-status` lists any that are still open.
+
 ### Configuration
 
 - Options are validated at mount: unknown keys, an unknown `mode`, out-of-range ratios and a
