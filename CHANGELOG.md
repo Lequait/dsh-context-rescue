@@ -92,11 +92,15 @@ where a proxy owns compression.
 
 ### Verification
 
-- 44 unit tests, including a replay of a real captured session log and of the exact wording from
+- 79 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
-- A sweep of every session log on the development machine: 171 logs, 32 oversized, 32 rescued,
+- A sweep of every session log on the development machine: 174 logs, 32 oversized, 32 rescued,
   0 failures.
-- The host's own `Session` class, loaded out of the app bundle, seeds 162 captured logs and folds
+- The digest is read by a person as well as by a model: tool calls render as what they were for,
+  a repeated call collapses to one line plus a count, harness plumbing (runtime snapshots, skill
+  catalogues, memory projections, time samples) is never listed as user intent, and a goal restated
+  every round appears once.
+- The host's own `Session` class, loaded out of the app bundle, seeds 174 captured logs and folds
   65 of them in-process (30 of those through the pre-flight path, with no failed request first): every append is validated by the host's `validateSessionEventData`, the
   projection by its `SurfaceManager`, and the derived history never keeps an orphan tool result.
 - The real application boots with the bundle installed: a copy whose `apply()` throws is reported by
