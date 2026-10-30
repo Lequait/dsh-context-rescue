@@ -39,7 +39,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 # 本地目录
 dsh plugin --profile <profile> add /path/to/dsh-context-rescue
 
-# 发布 npm 之后
+# 从 npm 安装（0.2.2 已发布）
 dsh plugin --profile <profile> add dsh-context-rescue
 ```
 

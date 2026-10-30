@@ -150,6 +150,14 @@ request), with no clone in between:
 
 ## 4. npm
 
+**Done: `dsh-context-rescue@0.2.2` is on npm as of 2026-10-31.** The `NPM_TOKEN` repository
+secret is set, so any future `git tag v*` publishes automatically through the release workflow.
+`npm i dsh-context-rescue` resolves; a throwaway profile installs it and registers the bundle.
+
+One artifact to know about: npm's staged publishing reserves a new name with a public
+`0.0.0-stage` stub version. It cannot be removed through a granular token, and it is not the
+package — `latest` points at 0.2.2.
+
 Either publish locally, through the guard script:
 
 ```bash
@@ -164,7 +172,7 @@ the install smoke and the publish rehearsal first, refuses a tag that disagrees 
 `package.json`, and publishes with provenance:
 
 ```bash
-git tag v0.2.2 && git push origin v0.2.2   # needs the NPM_TOKEN repository secret
+git tag v0.2.3 && git push origin v0.2.3   # NPM_TOKEN is already set; the workflow publishes
 ```
 
 The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/icon.svg`, `docs/`, both

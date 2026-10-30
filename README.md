@@ -44,7 +44,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 # from a checkout
 dsh plugin --profile <profile> add /path/to/dsh-context-rescue
 
-# once published to npm
+# from npm (0.2.2 is published)
 dsh plugin --profile <profile> add dsh-context-rescue
 ```
 
