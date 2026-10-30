@@ -46,6 +46,10 @@ where a proxy owns compression.
   real ones and three logs looked oversized when they already fit.
 
 ### Fixed
+- **Excerpts spare the message you just typed.** T4 used to pick the largest message
+  anywhere in the projection, which could be the file pasted into the current turn. It now
+  prefers older history and only cuts the current turn's message when nothing older is large
+  enough to bring the request under the window.
 
 - File paths in tool arguments were invisible to the checkpoint. The host stores arguments as a
   JSON text blob, so the tree walk found no path leaves and the "files touched" section stayed

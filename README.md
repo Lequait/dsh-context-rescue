@@ -184,7 +184,9 @@ regardless of the code the host assigned.
    legal while quietly removing what the turn was told to do, so if that is the only thing left
    over the window the ladder reports a failure instead of pretending. Several pasted blocks at
    once are handled in one pass — the fold takes the older span, and T4 cuts down what survives
-   in the tail.
+   in the tail. Within what is left over, older history is excerpted first: the message typed
+   into the current turn is what the turn is about, so it is only cut when nothing older is
+   large enough to bring the request under the window.
 
 5. **Retry once.** Return `{ kind: 'retry' }` so the loop resends the same step against the
    now-smaller surface. If every tier fails, or the per-turn budget is spent, delegate with

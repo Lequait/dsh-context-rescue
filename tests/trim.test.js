@@ -200,3 +200,37 @@ test('a single tool result that alone overflows is replaced with its call', asyn
   assert.equal(types.includes('tool/result'), false);
   assert.equal(measure(ctx, session).totalTokens < WINDOW, true);
 });
+
+test('an excerpt prefers older history over the message typed right now', async () => {
+  const { FakeSession, fakeContext, fakeLlm } = await import('./fake-session.js');
+  const { measure } = await import('../lib/measure.js');
+  const { pickOversizedNode } = await import('../lib/rescue.js');
+
+  const build = (olderChars, currentChars) => {
+    const session = new FakeSession();
+    session.append('turn/start', { turn: 1 });
+    session.append('user/message', { content: [{ type: 'text', text: 'x'.repeat(olderChars) }] });
+    session.append('assistant/message', { content: [{ type: 'text', text: 'ok' }] });
+    session.append('turn/start', { turn: 2 });
+    session.append('user/message', { content: [{ type: 'text', text: 'y'.repeat(currentChars) }] });
+    const ctx = fakeContext({ llm: fakeLlm(196608) });
+    const measurement = measure(ctx, session);
+    const turnStartSeq = session.events.filter((event) => event.type === 'turn/start').at(-1).seq;
+    return { session, measurement, turnStartSeq, olderSeq: measurement.nodes[0].seq, currentSeq: measurement.nodes.at(-1).seq };
+  };
+
+  const wide = build(300_000, 400_000);
+  const preferred = pickOversizedNode(wide.session, wide.measurement, 1, { turnStartSeq: wide.turnStartSeq });
+  assert.equal(wide.measurement.nodes[preferred.start].seq, wide.olderSeq, 'the older message was chosen');
+
+  const anyNode = pickOversizedNode(wide.session, wide.measurement, 1);
+  assert.equal(wide.measurement.nodes[anyNode.start].seq, wide.currentSeq, 'without a turn start the biggest message wins');
+
+  const narrow = build(400, 400_000);
+  const onlyCurrent = pickOversizedNode(narrow.session, narrow.measurement, 1000, { turnStartSeq: narrow.turnStartSeq });
+  assert.equal(
+    narrow.measurement.nodes[onlyCurrent.start].seq,
+    narrow.currentSeq,
+    'when nothing older is large enough the current message is still cut',
+  );
+});
