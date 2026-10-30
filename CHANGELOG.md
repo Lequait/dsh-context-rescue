@@ -7,6 +7,17 @@ compaction uses, and turns a context-window rejection into a rewritten projectio
 attempt can send. It never needs the model to summarise anything, so it keeps working on a lane
 where a proxy owns compression.
 
+### Tools
+- **The three tools are now covered the way the hooks are.** Measured coverage of
+  `lib/tools.js` was 55% of lines and 14% of functions: registration was asserted,
+  execution was not. `tests/tools.test.js` now drives `context_rescue` (status and
+  rescue), `context_rescue_estimate` (a pasted gateway message) and
+  `context_rescue_fold` through a registry that enforces the host's contract, and
+  pins the two shapes that matter in practice: a tool call with no session returns
+  `{ ok: false, error }` instead of throwing, and a manual fold with no turn number
+  still closes its compaction transaction (the host accepts an absent `turn` — a
+  probe against the host's own `Session` showed the event is written and accepted).
+
 ### Rescue
 - **A fold is previewed before it happens.** `/rescue-status` and `context_rescue`
   with `action: "status"` now say which nodes a rescue would replace (and their

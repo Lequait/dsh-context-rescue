@@ -92,3 +92,27 @@ test('file paths survive when the host stores arguments as a JSON string', () =>
   assert.match(text, /H:\\Projects\\Game/u);
   assert.equal(/T:\\n/u.test(text), false, 'an escape sequence is not a path');
 });
+
+test('a call whose arguments are not the shape we hoped for still reads as one line', () => {
+  // A tool that took a bare string, a call whose code has no description, and a
+  // call whose arguments are only unknown keys: all of them appear in summaries
+  // of real sessions, and none of them may paste a JSON blob into the checkpoint.
+  const text = digestOf([
+    call(1, 'read_file', 'G:/Projects/LineEngineer/main.lua'),
+    call(2, 'run_code', { code: 'local ok = pcall(require, "solver")\nprint(ok)' }),
+    call(3, 'opaque_tool', { alpha: 1, beta: 2 }),
+    assistant(4, 'done'),
+  ]);
+
+  assert.match(text, /read_file：G:\/Projects\/LineEngineer\/main\.lua/u);
+  assert.match(text, /run_code：local ok = pcall\(require, "solver"\)/u);
+  assert.match(text, /opaque_tool：参数：alpha、beta/u);
+  for (const line of text.split('\n')) {
+    assert.ok(line.length <= 240, `a summary line stayed short: ${line.slice(0, 80)}`);
+  }
+});
+
+test('a call with unparseable arguments falls back to its text instead of throwing', () => {
+  const text = digestOf([call(1, 'weird_tool', '{"unterminated": '), assistant(2, 'done')]);
+  assert.match(text, /weird_tool：\{"unterminated":/u);
+});
