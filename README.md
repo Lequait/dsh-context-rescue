@@ -195,6 +195,13 @@ All keys are optional; pass them through the plugin's config block.
 | `preflight` | `true` | fold on `agent/pre-step` when the projection is already over the window |
 | `verbose` | `true` | log rescue decisions to the session |
 
+### Configuration mistakes are reported, not swallowed
+
+Options are validated when the plugin mounts. An unknown key (`retainRation`), a `mode` the
+plugin does not know, a ratio outside its usable range, or a `targetRatio` that sits at or above
+`fitRatio` is logged as a `config:` warning instead of quietly changing the behaviour you expect.
+A rescue plugin that silently ignores a typo is indistinguishable from one that is not installed.
+
 ## Safety
 
 - **Never corrupts the surface.** Fold boundaries are balance-safe by the host's own rule; a

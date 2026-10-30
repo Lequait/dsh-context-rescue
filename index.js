@@ -14,7 +14,7 @@
  */
 
 import { registerCommands } from './lib/command.js';
-import { resolveConfig } from './lib/config.js';
+import { resolveConfig, validateConfig } from './lib/config.js';
 import { log, preflight, rememberReport, rescue, rescueStateOf } from './lib/rescue.js';
 import { registerTools } from './lib/tools.js';
 import { errorText } from './lib/util.js';
@@ -30,6 +30,9 @@ export const inject = ['tools'];
 /** @param {any} ctx @param {any} rawConfig */
 export function apply(ctx, rawConfig) {
   const config = resolveConfig(rawConfig);
+  // A misspelled option would otherwise make the plugin behave exactly like an
+  // uninstalled one, so misconfiguration is reported where it is caused.
+  for (const warning of validateConfig(rawConfig)) log(ctx, 'warn', `config: ${warning.message}`);
   if (!config.enabled) {
     log(ctx, 'info', 'disabled by configuration');
     return;

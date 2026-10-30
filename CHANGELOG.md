@@ -16,6 +16,12 @@ where a proxy owns compression.
   `isSurfaceEligibleType` reports both as not eligible, so replayed projections were wider than
   real ones and three logs looked oversized when they already fit.
 
+### Configuration
+
+- Options are validated at mount: unknown keys, an unknown `mode`, out-of-range ratios and a
+  `targetRatio` that is not below `fitRatio` are logged as `config:` warnings. A plugin that
+  silently ignores a typo behaves like a plugin that is not installed.
+
 ### Rescue
 
 - **Pre-flight.** The same rescue also runs on `agent/pre-step`: when the projection is already

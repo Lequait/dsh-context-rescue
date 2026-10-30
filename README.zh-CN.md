@@ -172,6 +172,12 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 | `preflight` | `true` | 投影已超窗时在 `agent/pre-step` 就地折叠 |
 | `verbose` | `true` | 把急救决策写进会话日志 |
 
+### 配置写错会被告知，而不是被吞掉
+
+插件挂载时会校验选项：拼错的键（如 `retainRation`）、不认识的 `mode`、超出可用区间的比例、
+以及不低于 `fitRatio` 的 `targetRatio`，都会以 `config:` 开头的 warn 日志报出，而不是悄悄按别的
+值运行。对急救插件来说，"静默忽略拼写错误"和"根本没装"是同一件事。
+
 ## 安全边界
 
 - **绝不损坏投影**：切点按宿主自己的平衡规则计算，会把工具调用和它的结果切开的区间一律不用；
