@@ -24,6 +24,7 @@
   },
   "scripts": {
     "test": "node --test",
+    "typecheck": "tsc -p tsconfig.json",
     "test:host": "node scripts/run-host-node.mjs --test",
     "simulate": "node scripts/simulate.js",
     "mount-check": "node scripts/run-host-node.mjs scripts/dev/mount-check.mjs",
@@ -52,5 +53,9 @@
     "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
 }

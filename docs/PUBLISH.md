@@ -4,12 +4,13 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + commands + market rules | `npm test` | 41 tests, 38 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 41 tests, 39 pass, 2 skipped |
+| Unit + fold + rescue + commands + market rules | `npm test` | 42 tests, 39 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 42 tests, 40 pass, 2 skipped |
+| JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 12 files |
 | Three failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 23 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 14 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry) |
-| Publish flow against a throwaway remote | `npm run publish:rehearse` | 16 assertions pass (pushed branch, host-accepted index entry, pinned commit, install spec) |
+| Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
 | Sweep of every captured session log | `npm run scan` | 157 logs, 34 oversized, 34 rescued, 0 failed |
 | Market index entry | `npm run market -- --repo-slug OWNER/dsh-context-rescue` | validated by the host |
 

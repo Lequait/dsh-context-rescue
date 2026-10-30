@@ -196,3 +196,37 @@ test('a projection that already fits is retried without being rewritten', async 
   assert.equal(session.surface.nodes.length, nodesBefore, 'nothing was folded');
   assert.equal(report.tiers.length, 0);
 });
+
+test('an internal failure is logged and handed back to the host, never thrown', async () => {
+  const session = sessionWithLongHistory();
+  const ctx = fakeContext({ llm: fakeLlm(60000), tools: { register: () => () => {} } });
+  apply(ctx, { maxAttemptsPerTurn: 2 });
+  const handler = ctx.listeners.get('agent/request-error');
+
+  // A session that blows up while being measured stands in for any unexpected defect: the
+  // waterfall must see `next()` rather than an exception, or the host loop would lose the
+  // original provider error.
+  const broken = {
+    get events() {
+      throw new Error('events exploded');
+    },
+    append() {},
+  };
+  const payload = { agent: { session: broken }, failure: OVERFLOW, provider: 'p', turn: 1, step: 1 };
+  let delegated = 0;
+  const next = async () => {
+    delegated += 1;
+    return undefined;
+  };
+
+  const result = await handler(payload, next);
+  assert.equal(result, undefined, 'the listener delegates instead of throwing');
+  assert.equal(delegated, 1);
+  const logged = ctx.logs.map((entry) => `${entry.level} ${entry.message}`).join('\n');
+  assert.match(logged, /rescue failed, passing the original error through/u);
+  assert.match(logged, /events exploded/u);
+
+  // The broken turn must not have poisoned the budget counter of a healthy one.
+  const healthy = { agent: { session }, failure: OVERFLOW, provider: 'p', turn: 2, step: 1 };
+  assert.deepEqual(await handler(healthy, next), { kind: 'retry' });
+});

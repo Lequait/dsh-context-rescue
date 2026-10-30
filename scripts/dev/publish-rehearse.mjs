@@ -54,6 +54,33 @@ async function hostValidator() {
   return import(`file://${file.replaceAll('\\', '/')}`);
 }
 
+/** A standalone clone plus an empty bare remote, the shape of a first publish. */
+function makeRehearsal(prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const cloneDir = path.join(dir, 'work');
+  const bareDir = path.join(dir, 'remote.git');
+  execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, cloneDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  execFileSync('git', ['init', '--quiet', '--bare', bareDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  return { dir, clone: cloneDir, bare: bareDir };
+}
+
+/** Windows keeps the clone's object files locked for a moment after the child git exits. */
+function cleanupDir(dir) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      return;
+    } catch {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
+    }
+  }
+  spawn(process.platform === 'win32' ? 'cmd' : 'sh',
+    process.platform === 'win32' ? ['/c', 'rmdir', '/s', '/q', dir] : ['-c', `rm -rf '${dir}'`],
+    { detached: true, stdio: 'ignore' }).unref();
+  process.stdout.write(`cleanup of ${dir} deferred (a handle is still open)
+`);
+}
+
 const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-rescue-rehearse-'));
 const clone = path.join(workspace, 'work');
 const bare = path.join(workspace, 'remote.git');
@@ -139,31 +166,32 @@ try {
   check('this checkout was left untouched',
     git(['rev-parse', 'HEAD'], ROOT) === sourceHead && git(['status', '--porcelain'], ROOT) === sourceStatus,
     'the real work tree changed');
+  process.stdout.write('4. an existing master branch is kept as master\n');
+  const legacy = makeRehearsal('dsh-rescue-rehearse-legacy-');
+  try {
+    execFileSync('git', ['push', '--quiet', legacy.bare, 'master'], { cwd: legacy.clone, stdio: ['ignore', 'pipe', 'pipe'] });
+    const legacyOutput = execFileSync(
+      process.execPath,
+      [path.join(ROOT, 'scripts/publish-remote.mjs'),
+        '--root', legacy.clone, '--repo', REPO_HTTPS, '--push-url', legacy.bare, '--remote', 'origin'],
+      { cwd: legacy.clone, encoding: 'utf8', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    check(
+      'a repository that already publishes master keeps master',
+      legacyOutput.includes('branch      master') && legacyOutput.includes('/raw/master/market/index.json'),
+      legacyOutput.split('\n').filter((line) => line.includes('branch')).join(' / '),
+    );
+    check('the legacy push landed on master', git(['for-each-ref', '--format=%(refname:short)', 'refs/heads'], legacy.bare).trim() === 'master');
+  } finally {
+    if (KEEP) process.stdout.write(`\nkept        ${legacy.dir}\n`);
+    else cleanupDir(legacy.dir);
+  }
 } catch (error) {
   failures.push('rehearsal threw');
   process.stderr.write(`${String(error.stderr ?? error.message).trim()}\n`);
 } finally {
-  if (KEEP) {
-    process.stdout.write(`\nkept        ${workspace}\n`);
-  } else {
-    // Windows keeps the clone's object files locked for a moment after the child git exits, so
-    // retry, and hand the removal to a detached shell if a scanner is still holding them.
-    let removed = false;
-    for (let attempt = 0; attempt < 6 && !removed; attempt += 1) {
-      try {
-        fs.rmSync(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-        removed = true;
-      } catch {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
-      }
-    }
-    if (!removed) {
-      spawn(process.platform === 'win32' ? 'cmd' : 'sh',
-        process.platform === 'win32' ? ['/c', 'rmdir', '/s', '/q', workspace] : ['-c', `rm -rf '${workspace}'`],
-        { detached: true, stdio: 'ignore' }).unref();
-      process.stdout.write(`cleanup of ${workspace} deferred (a handle is still open)\n`);
-    }
-  }
+  if (KEEP) process.stdout.write(`\nkept        ${workspace}\n`);
+  else cleanupDir(workspace);
 }
 
 process.stdout.write(failures.length === 0 ? '\npublish rehearsal passed\n' : `\npublish rehearsal failed: ${failures.join(', ')}\n`);

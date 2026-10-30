@@ -176,6 +176,7 @@ All keys are optional; pass them through the plugin's config block.
 
 ```bash
 node --test                          # unit + replay
+npm run typecheck                    # JSDoc type contract over index.js and lib/
 node scripts/simulate.js             # three failure scenarios against the real code
 npm run scan                         # fold every oversized session log found on this machine
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
@@ -190,6 +191,7 @@ npm run mount-check
 npm run install-smoke
 
 # rehearse the whole publish flow against a throwaway clone and a local bare remote
+# (also pins the branch rule: an empty remote gets main, an existing master keeps master)
 npm run publish:rehearse
 
 # build + validate a market index entry for this checkout

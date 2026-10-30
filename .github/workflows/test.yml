@@ -19,6 +19,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - name: Install dev tooling
+        if: matrix.node == 22
+        run: npm install --no-audit --no-fund
+      - name: Type check
+        if: matrix.node == 22
+        run: npm run typecheck
       - name: Unit tests
         run: node --test
       - name: Offline simulation

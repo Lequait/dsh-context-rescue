@@ -123,10 +123,15 @@ async function main() {
     throw new Error('the checkout is on a detached HEAD; check out a branch first');
   }
 
-  // A brand-new local repository here defaults to 'master'; the published index URL and every
-  // install instruction use 'main', so rename before the first push instead of documenting a
-  // branch nobody expects. Only when nothing has been pushed yet.
-  if (branch === 'master' && git(['remote'], { allowFailure: true }) === '') {
+  const existing = git(['remote', 'get-url', remote], { allowFailure: true });
+  // A brand-new repository defaults to 'master' while GitHub and every instruction in this repo
+  // use 'main'. Rename only when the remote does not have that branch yet, i.e. on the very first
+  // push; an existing repository that really uses 'master' keeps it (the index URL follows).
+  const pushTarget =
+    typeof pushUrlArg === 'string' ? pushUrlArg : existing !== '' ? existing : repo.pushUrl;
+  const remoteHasBranch =
+    pushTarget === '' ? false : git(['ls-remote', '--heads', pushTarget, branch], { allowFailure: true }) !== '';
+  if (branch === 'master' && !remoteHasBranch) {
     if (dryRun) {
       process.stdout.write('would run   git branch -M main (nothing has been pushed yet)\n');
     } else {
@@ -135,7 +140,6 @@ async function main() {
     branch = 'main';
   }
 
-  const existing = git(['remote', 'get-url', remote], { allowFailure: true });
   // The index URL must address the branch that actually gets pushed, which is not always 'main'
   // (an existing clone keeps whatever branch it is on).
   const indexUrl = `${repo.https}/raw/${branch}/market/index.json`;

@@ -152,6 +152,7 @@ DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `ind
 
 ```bash
 node --test                          # 单测 + 回放
+npm run typecheck                    # 用 JSDoc 给 index.js 与 lib/ 做类型检查
 node scripts/simulate.js             # 三个失效场景跑真实插件代码
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
@@ -165,6 +166,7 @@ npm run mount-check
 npm run install-smoke
 
 # 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
+# （同时钉住分支规则：空远端首次推送改成 main，已有 master 的仓库保持 master）
 npm run publish:rehearse
 
 # 为当前 checkout 生成并校验上架条目
