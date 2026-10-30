@@ -22,6 +22,7 @@ import { DEFAULTS, mergeConfig } from '../../lib/config.js';
 import { eventsOf, measure, resolveWindow } from '../../lib/measure.js';
 import { applyFold } from '../../lib/fold.js';
 import { pairingCuts, planFold } from '../../lib/plan.js';
+import { preflight } from '../../lib/rescue.js';
 import { buildDigest } from '../../lib/digest.js';
 import { dshAsarCandidates } from '../host-paths.mjs';
 
@@ -171,10 +172,28 @@ async function checkOne(Session, SessionId, logPath, config) {
     assert.ok(measure(ctx, session).totalTokens < after.totalTokens, 'second fold did not shrink the projection');
   }
 
+  // The pre-step path, end to end, on a real host Session: nothing has failed
+  // yet, so the plugin measures the projection, decides on its own, and folds.
+  const preSession = seedHostSession(Session, SessionId, events, 'host-preflight');
+  const preBefore = measure(ctx, preSession).totalTokens;
+  const report = await preflight(ctx, { agent: { session: preSession }, session: preSession, config });
+  if (preBefore > config.windowFallback) {
+    assert.equal(
+      report.action,
+      'fold',
+      `pre-flight did not fold an over-window projection (${preBefore} tokens: ${report.reason})`,
+    );
+    assert.ok(measure(ctx, preSession).totalTokens < preBefore, 'pre-flight did not shrink the projection');
+    assert.equal(orphanToolResults(preSession.deriveMessages()), 0, 'pre-flight left a tool result without a call');
+    assert.equal(eventsOf(preSession).at(-1).type, 'compaction/end', 'pre-flight left the bracket open');
+  } else {
+    assert.equal(report.action, 'pass', `pre-flight rewrote a projection that fits (${preBefore} tokens)`);
+  }
+
   const last = eventsOf(session).at(-1);
   assert.equal(last.type, 'compaction/end', `host log does not end with compaction/end (got ${last.type})`);
 
-  return { logPath, before: before.totalTokens, after: after.totalTokens, nodes: hostNodes };
+  return { logPath, before: before.totalTokens, after: after.totalTokens, nodes: hostNodes, preFlight: report.action };
 }
 
 async function main() {
@@ -206,12 +225,18 @@ async function main() {
     console.log(`  ok  ${result.logPath.split(/[\\/]/u).slice(-2)[0]}  ${result.before} → ${result.after} tokens (${result.nodes} nodes)`);
   }
   if (folded.length > 5) console.log(`  ok  … and ${folded.length - 5} more logs folded under the host session class`);
+  const preFlightFolds = folded.filter((result) => result.preFlight === 'fold').length;
   for (const result of failed) console.log(`  FAIL ${result.logPath}: ${result.error}`);
 
   console.log(
-    `host session check: ${results.length} logs · ${folded.length} folded · ${skipped.length} skipped · ${failed.length} failed`,
+    `host session check: ${results.length} logs · ${folded.length} folded · ${preFlightFolds} pre-flight folds · ${skipped.length} skipped · ${failed.length} failed`,
   );
   if (failed.length > 0) process.exitCode = 1;
+  if (preFlightFolds === 0) {
+    // A gate that never exercises the branch it exists for is a gate that lies.
+    console.log('FAIL no log exercised the pre-flight fold branch');
+    process.exitCode = 1;
+  }
 }
 
 await main();

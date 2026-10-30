@@ -233,7 +233,7 @@ rejection that forces the ladder, an internal throw that is handed back to the h
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
-sweeps every log on this machine and folds each oversized one with zero model calls: 31 of 157
+sweeps every log on this machine and folds each oversized one with zero model calls: 32 of 157
 captured sessions exceed a 196,608-token window and all 31 are rescued, with no failure
 (`docs/PLAN.md` §5).
 
@@ -242,7 +242,7 @@ the `Session` class out of the installed app bundle and replays captured logs th
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
 next request would carry. 157 logs seed, 65 fold (twice each, to prove a folded session can be
-folded again), and the rest are skipped because the host itself cannot re-seed them in isolation
+folded again), 30 of those folds come from the pre-flight path before any request failed, and the rest are skipped because the host itself cannot re-seed them in isolation
 (a foreign plugin's message projection, or a pre-v4 log).
 
 `coexist` mounts the plugin beside the host's *real* compaction engine

@@ -64,7 +64,7 @@ where a proxy owns compression.
 - A sweep of every session log on the development machine: 157 logs, 32 oversized, 32 rescued,
   0 failures.
 - The host's own `Session` class, loaded out of the app bundle, seeds 157 captured logs and folds
-  65 of them in-process: every append is validated by the host's `validateSessionEventData`, the
+  65 of them in-process (30 of those through the pre-flight path, with no failed request first): every append is validated by the host's `validateSessionEventData`, the
   projection by its `SurfaceManager`, and the derived history never keeps an orphan tool result.
 - The app's own CLI (`dsh plugin --profile <name> add <tarball>`) installs the packed tarball into
   a real profile, which then depends on the plugin and lists its bundle; the host loader resolves
