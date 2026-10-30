@@ -157,6 +157,24 @@ test('/rescue-status reports without rewriting even when the session is oversize
   assert.ok(measure(context, session).totalTokens > 60000);
 });
 
+test('/rescue-status says when the rescue would excerpt a message instead of folding', async () => {
+  const session = new FakeSession();
+  session.append('user/message', { content: [{ type: 'text', text: 'hello' }] });
+  session.append('assistant/message', { content: [{ type: 'text', text: 'ok' }] });
+  session.append('user/message', { content: [{ type: 'text', text: 'x'.repeat(1_000_000) }] });
+  const { commands } = setup({ session, window: 196608 });
+  const nodesBefore = session.surface.nodes.length;
+
+  const result = assertCommandResult(await commands.registered.get('rescue-status').handler({
+    agent: { session }, rawInput: '', signal: new AbortController().signal,
+  }));
+
+  assert.equal(result.kind, 'success');
+  assert.match(result.text, /a rescue would replace one oversized message \(seq \d+…\d+, ~[\d,]+ tokens\) with its own head and tail/);
+  assert.doesNotMatch(result.text, /find nothing to fold/);
+  assert.equal(session.surface.nodes.length, nodesBefore, 'the preview must not rewrite the session');
+});
+
 test('commands report a missing session instead of throwing', async () => {
   const { commands } = setup();
   for (const name of ['rescue', 'rescue-status']) {

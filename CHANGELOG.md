@@ -46,6 +46,10 @@ where a proxy owns compression.
   real ones and three logs looked oversized when they already fit.
 
 ### Fixed
+- **The status preview stopped at folding.** When nothing could be folded it reported "a rescue
+  would find nothing to fold", even though T4 would have excerpted an oversized message — the one
+  case where a person most needs to know what is about to happen. The preview now asks the same
+  picker the ladder uses, with the same size floor, and names the message it would cut.
 - **Excerpts spare the message you just typed.** T4 used to pick the largest message
   anywhere in the projection, which could be the file pasted into the current turn. It now
   prefers older history and only cuts the current turn's message when nothing older is large

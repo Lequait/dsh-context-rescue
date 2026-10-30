@@ -217,6 +217,10 @@ path and the tools.
 | `/rescue` | fold the oldest span now and report the token delta (`/rescue status` reports only) |
 | `/rescue-status` | occupancy, resolved window, whether a fold is possible, what a fold would cost right now, and the last attempt |
 
+The status line distinguishes the two things a rescue can do: it names the span a fold would
+take, and when nothing can be folded it says which oversized message would be excerpted instead
+of claiming there is nothing to do.
+
 The registry may mount after this plugin; registration is retried when the service appears.
 Results are one line of text, and a rescue folds through exactly the same code path as the
 automatic one. Commands never throw.

@@ -4,8 +4,8 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + repair + trim + tools + commands + market rules | `npm test` | 104 tests, 101 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 104 tests, 102 pass, 2 skipped |
+| Unit + fold + rescue + repair + trim + tools + commands + market rules | `npm test` | 105 tests, 102 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 105 tests, 103 pass, 2 skipped |
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 12 files |
 | Four failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 25 assertions pass |
@@ -114,7 +114,7 @@ Requirements that apply to this repo, checked against the guide on 2026-10-30:
 | --- | --- |
 | `dsh.bundle` manifest in `package.json` | present (`bundle.patch`) |
 | [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic | set on `Lequait/dsh-context-rescue` |
-| real, working code | 104 tests, eight host-side gates |
+| real, working code | 105 tests, eight host-side gates |
 | repo at least **1 day old** | created 2026-10-30T10:28Z, so submit no earlier than 2026-10-31T10:28Z |
 | description states function only | no superlatives; every claim above maps to `lib/` |
 
