@@ -194,7 +194,7 @@ where a proxy owns compression.
   the host under the plugin's own entry (so a silent skip cannot pass as success), the real package
   boots past mounting with no error of its own, and it still mounts after `billion-context` — the
   proxy that owns the compression lane on some machines — is installed into the same profile
-  (24 assertions, four throwaway profiles removed; the last one pairs the bundle with
+  (29 assertions, five throwaway profiles removed; the extra ones pair the bundle with
   `dsh-smart-compact`, the plugin that replaces the compaction engine).
 - The app's own CLI (`dsh plugin --profile <name> add <tarball>`) installs the packed tarball into
   a real profile, which then depends on the plugin and lists its bundle; the host loader resolves

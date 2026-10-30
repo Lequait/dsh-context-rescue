@@ -38,6 +38,7 @@ const PROBE_PROFILE = `rescue-boot-probe-${Date.now().toString(36)}`;
 const REAL_PROFILE = `rescue-boot-${Date.now().toString(36)}`;
 const PAIRED_PROFILE = `rescue-boot-pair-${Date.now().toString(36)}`;
 const SLOT_PROFILE = `rescue-boot-slot-${Date.now().toString(36)}`;
+const WEB_PROFILE = `rescue-boot-web-${Date.now().toString(36)}`;
 const BOOT_TASK = 'reply with the single word ok';
 
 let assertions = 0;
@@ -71,9 +72,9 @@ function cli(app, args, options = {}) {
   });
 }
 
-function makeProfile(app, name) {
-  const created = cli(app, ['--profile', name, '--from-default-profile', 'headless', '--dump-config']);
-  ok(created.status === 0, `the host created a throwaway profile ${name}`);
+function makeProfile(app, name, template = 'headless') {
+  const created = cli(app, ['--profile', name, '--from-default-profile', template, '--dump-config']);
+  ok(created.status === 0, `the host created a throwaway profile ${name} from the ${template} template`);
 }
 
 function addPlugin(app, name, spec) {
@@ -122,6 +123,7 @@ async function main() {
   const realDir = join(profilesDir, REAL_PROFILE);
   const pairedDir = join(profilesDir, PAIRED_PROFILE);
   const slotDir = join(profilesDir, SLOT_PROFILE);
+  const webDir = join(profilesDir, WEB_PROFILE);
   const compactStage = mkdtempSync(join(tmpdir(), 'dsh-smart-compact-'));
 
   try {
@@ -231,14 +233,31 @@ async function main() {
       }
     }
 
+    // 5. The shape users actually run. `--from-default-profile web` seeds the same tree the
+    //    desktop app composes -- including the client bundles that render the command surface --
+    //    and it is a different tree from `headless`, so the entry has to land here as well.
+    //    Asserting the GUI command bundle is present keeps this from passing on an empty shell.
+    makeProfile(app, WEB_PROFILE, 'web');
+    addPlugin(app, WEB_PROFILE, join(realStage, realTarball));
+    const webDump = cli(app, ['--profile', WEB_PROFILE, '--dump-config']);
+    const webTree = `${webDump.stdout ?? ''}
+${webDump.stderr ?? ''}`;
+    ok(webDump.status === 0, 'the web-shaped profile still validates after the plugin is added');
+    ok(webTree.includes('- id: context-rescue'), 'the plugin is composed into the web shape, not just headless');
+    ok(
+      webTree.includes('@deepseek-ai/dsh-client-ui-commands'),
+      'this really is the web shape: the bundle that renders commands is in the same tree',
+    );
+
     console.log(`boot check: ${assertions} assertions`);
   } finally {
     removeDir(probeDir);
     removeDir(realDir);
     removeDir(pairedDir);
     removeDir(slotDir);
+    removeDir(webDir);
     removeDir(compactStage);
-    for (const dir of [probeDir, realDir, pairedDir, slotDir]) {
+    for (const dir of [probeDir, realDir, pairedDir, slotDir, webDir]) {
       if (existsSync(dir)) console.log(`boot check warning: ${dir} could not be removed`);
     }
   }
