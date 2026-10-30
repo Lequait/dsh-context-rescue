@@ -46,7 +46,7 @@ The plugin declares `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }` and
 as `context-rescue`. It imports **no** `@deepseek-ai/*` package at runtime — every host
 structure it touches (`surfaceOp`, `compaction/*`, the pairing rule, the model-info resolver)
 is constructed locally against the documented wire shape. A host upgrade cannot break the
-plugin's imports, and a missing peer dependency cannot stop it from loading.
+plugin's imports, and it declares no host peer dependency to go missing.
 
 Restart the session (or the app) after installing; a host reload is required for a new bundle.
 
@@ -129,6 +129,9 @@ All keys are optional; pass them through the plugin's config block.
 node --test                          # unit + replay
 node scripts/simulate.js             # three failure scenarios against the real code
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
+
+# mount into the installed app's own cordis container and drive one rescue
+ELECTRON_RUN_AS_NODE=1 "<app>/DSH NEXT.exe" scripts/dev/mount-check.mjs
 ```
 
 The suite covers detection, pairing-safe planning, fold transactions, ladder behaviour, lane
@@ -137,6 +140,13 @@ additionally folds a log captured from a real session and re-checks the host inv
 result; it is skipped unless `DSH_SESSION_LOG` is set. Measured folds on real logs from this
 machine: `956 → 169` nodes (991,512 → 298,595 tokens), `2232 → 507` (933,308 → 241,381),
 `482 → 183`, `382 → 165`.
+
+`mount-check` is the integration gate: it loads the plugin into the **installed app's** cordis
+4 container, so it exercises the real `inject`/`Service` wiring and the real
+`ctx.waterfall('agent/request-error', payload, next)` dispatch instead of a hand-rolled context.
+It asserts the tools land on the real `tools` service, the waterfall answers `{kind:'retry'}`,
+the surface is rewritten with a checkpoint, the per-turn budget stops the third attempt, and the
+tools answer through the service.
 
 The simulation is not decoration: it caught a real bug, where the measurement path inherited
 the digest renderer's 2000-character clamp and priced a 480,000-character message at 1,992

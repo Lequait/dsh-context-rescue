@@ -123,6 +123,16 @@ Gate: three simulation scenarios green; four real logs green (see §5) → **pas
 - `git init` + first commit on the user's repository;
 - marketplace: `dsh-plugin` topic, entry PR to the awesome list(s), npm publish.
 
+Two manifest decisions came out of inspecting the installed host (`0.2.1-rc.3`):
+
+- `@deepseek-ai/dsh-plugin` — the peer this plugin originally declared — **does not exist** in
+  the host's `node_modules`, so declaring it was a phantom requirement. It is gone; the plugin
+  needs no host package at runtime.
+- The host guard is now `engines.dsh: ">=0.2.0-rc.1"`. Per the host's own rule (`evaluatePlugin
+  Compatibility`: an own `engines.dsh` range decides alone, peers are then ignored) this is the
+  single place that states the contract. Checked both ways: `0.2.1-rc.3` → compatible,
+  `0.1.5-rc.2` → unmet requirement `{"engines.dsh":">=0.2.0-rc.1"}`.
+
 Gate: repository pushed, listing submitted → **blocked on repository URL and credentials**
 (the machine has no `gh`, no SSH key, and no configured remote).
 
@@ -136,6 +146,9 @@ Gate: repository pushed, listing submitted → **blocked on repository URL and c
 | Zero-model path | works with `llm.stream` unavailable/refused | verified in simulation and tests |
 | No host imports | plugin imports no `@deepseek-ai/*` at runtime | verified by `grep` in CI-style script + package `files` |
 | Idempotence | a second failure in the same turn does not re-fold blindly | verified by per-turn budget test |
+| Bundle patch | `cordis.patch.yml` parses and resolves through the host's own loader | verified: `bundlePatchPaths` + `loadOverlayPatches` returned the expected insert entry |
+| Manifest compatibility | host `evaluatePluginCompatibility` accepts the manifest, and rejects 0.1.x | verified: compatible on `0.2.1-rc.3`, `{"engines.dsh":">=0.2.0-rc.1"}` unmet on `0.1.5-rc.2` |
+| Host container mount | plugin mounts in the installed app's cordis 4 and the tools land on the real `tools` service | verified by `scripts/dev/mount-check.mjs` (10 assertions) |
 
 ## 5. Real-log evidence
 

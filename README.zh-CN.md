@@ -40,7 +40,7 @@ dsh plugin --profile <profile> add dsh-context-rescue
 包内声明了 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`，以 `context-rescue`
 为 id 插入。**运行时它不 import 任何 `@deepseek-ai/*` 包**：`surfaceOp`、`compaction/*` 事务、
 配对规则、模型窗口解析全部按宿主的线上结构在本地构造。宿主升级不会打断它的 import，
-peer 依赖缺失也不会导致装载失败。装完重启一次（新 bundle 需要宿主重载）。
+它也不声明任何宿主 peer 依赖（也就没有"peer 缺失装不上"这回事）。装完重启一次（新 bundle 需要宿主重载）。
 
 ## 请求失败之后它做什么
 
@@ -113,12 +113,20 @@ peer 依赖缺失也不会导致装载失败。装完重启一次（新 bundle �
 node --test                          # 单测 + 回放
 node scripts/simulate.js             # 三个失效场景跑真实插件代码
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
+
+# 装进本机 app 自己的 cordis 容器里跑一次真实救援
+ELECTRON_RUN_AS_NODE=1 "<app>/DSH NEXT.exe" scripts/dev/mount-check.mjs
 ```
 
 覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算与计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
 `DSH_SESSION_LOG` 时自动跳过。本机实测：`956 → 169` 节点（991,512 → 298,595 tokens）、
 `2232 → 507`（933,308 → 241,381）、`482 → 183`、`382 → 165`。
+
+`mount-check` 是集成闸门：它把插件装进**本机已安装 app** 自带的 cordis 4 容器，因此验证的是
+真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`
+派发，而不是手搓的假 context。它断言工具确实注册到真实 `tools` 服务、瀑布返回
+`{kind:'retry'}`、投影被改写成检查点、每轮预算拦住第三次、工具能通过服务响应。
 
 模拟不是摆设：它抓到了一个真 bug —— 计量路径复用了摘要渲染的 2000 字符截断，把一条
 480,000 字符的消息算成 1,992 tokens，插件因此误判"装得下"。

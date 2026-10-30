@@ -17,11 +17,14 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "dsh": ">=0.2.0-rc.1"
   },
   "scripts": {
     "test": "node --test",
-    "simulate": "node scripts/simulate.js"
+    "simulate": "node scripts/simulate.js",
+    "mount-check": "node scripts/dev/mount-check.mjs",
+    "inspect": "node scripts/dev/inspect-session.mjs"
   },
   "dsh": {
     "bundle": {
@@ -37,14 +40,6 @@
     "context-overflow",
     "rescue"
   ],
-  "peerDependencies": {
-    "@deepseek-ai/dsh-plugin": ">=0.1.0"
-  },
-  "peerDependenciesMeta": {
-    "@deepseek-ai/dsh-plugin": {
-      "optional": true
-    }
-  },
   "publishConfig": {
     "access": "public"
   },
