@@ -2,11 +2,26 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { FakeSession, fakeContext, fakeLlm, seedConversation } from './fake-session.js';
+import { fakeMeter } from './fake-session.js';
 import { resolveConfig } from '../lib/config.js';
 import { preflight } from '../lib/rescue.js';
 import { measure } from '../lib/measure.js';
 import { hasOpenCompactionTransaction } from '../lib/plan.js';
 import { apply } from '../index.js';
+
+/** A meter that counts how often the projection was actually measured. */
+function countingMeter() {
+  const inner = fakeMeter();
+  const meter = {
+    calls: 0,
+    measure(session) {
+      meter.calls += 1;
+      return inner.measure(session);
+    },
+    estimateMessage: (message) => inner.estimateMessage(message),
+  };
+  return meter;
+}
 
 function sessionWithLongHistory(turns = 24, chars = 3000) {
   const session = new FakeSession();
@@ -149,4 +164,66 @@ test('pre-flight rescues a step whose overshoot is one message', async () => {
   assert.ok(report.after.totalTokens < 60000);
   assert.ok(report.tiers.some((tier) => tier.tier === 'oversized-message' && tier.ok === true));
   assert.equal(hasOpenCompactionTransaction(session.events), false);
+});
+
+test('a step that changed almost nothing is passed without measuring again', async () => {
+  const session = sessionWithLongHistory(4, 400);
+  const agent = { session };
+  const meter = countingMeter();
+  const ctx = fakeContext({ llm: fakeLlm(196608), tokenMeter: meter });
+  const config = resolveConfig({});
+
+  const first = await preflight(ctx, { agent, session, config, provider: 'p' });
+  assert.equal(first.action, 'pass');
+  assert.equal(meter.calls, 1, 'the first check has to measure');
+
+  session.append('user/message', { message: { content: [{ type: 'text', text: '继续，下一步做 X。' }] } });
+  const second = await preflight(ctx, { agent, session, config, provider: 'p' });
+  assert.equal(second.action, 'pass');
+  assert.equal(meter.calls, 1, 'a small append must not trigger a full re-measurement');
+  assert.equal(second.before.source, 'growth');
+  assert.ok(second.before.totalTokens > first.before.totalTokens, 'the estimate counts the new message');
+});
+
+test('one big paste forces a real measurement and a fold', async () => {
+  const session = sessionWithLongHistory(4, 400);
+  const agent = { session };
+  const meter = countingMeter();
+  const ctx = fakeContext({ llm: fakeLlm(196608), tokenMeter: meter });
+  const config = resolveConfig({});
+
+  const first = await preflight(ctx, { agent, session, config, provider: 'p' });
+  assert.equal(first.action, 'pass');
+  assert.equal(meter.calls, 1);
+
+  session.append('user/message', { message: { content: [{ type: 'text', text: '贴进来的整份文件：' + '数据。'.repeat(400000) }] } });
+  const second = await preflight(ctx, { agent, session, config, provider: 'p' });
+  assert.equal(second.action, 'fold');
+  assert.ok(meter.calls >= 2, 'a large message invalidates the cheap estimate');
+  assert.ok(second.after.totalTokens < second.window.windowTokens);
+});
+
+test('a fold performed elsewhere invalidates the cached measurement', async () => {
+  const session = sessionWithLongHistory(6, 600);
+  const agent = { session };
+  const meter = countingMeter();
+  const ctx = fakeContext({ llm: fakeLlm(196608), tokenMeter: meter });
+  const config = resolveConfig({});
+
+  await preflight(ctx, { agent, session, config, provider: 'p' });
+  assert.equal(meter.calls, 1);
+
+  // Someone else folds the first two surface nodes into one replacement.
+  const nodes = session.surface.nodes.slice();
+  session.append('compaction/start', { compactionId: 'foreign', turn: 2 });
+  session.append('compaction/prune', { compactionId: 'foreign', shadowedSeqs: nodes.slice(0, 2), shadowedTokenCount: 10 });
+  session.append(
+    'user/message',
+    { message: { content: [{ type: 'text', text: '<context-rescue-checkpoint>别人的摘要</context-rescue-checkpoint>' }] } },
+    { surfaceOp: { op: 'replace', startSeq: nodes[0], endSeq: nodes[1] } },
+  );
+  session.append('compaction/end', { compactionId: 'foreign', turn: 2 });
+
+  await preflight(ctx, { agent, session, config, provider: 'p' });
+  assert.equal(meter.calls, 2, 'a shape change the cache cannot explain must be re-measured');
 });

@@ -18,6 +18,11 @@ where a proxy owns compression.
 
 ### Fixed
 
+- An oversized single message was invisible to T4 whenever anything else sat on the surface: the
+  pairing cuts were computed over the raw log (which also carries `tool/call` mirrors and
+  compaction brackets) instead of over the surface nodes, so every index was shifted and no
+  candidate ever looked balanced. Cuts now come from the same node list the measurement uses.
+
 - A session whose *first* message alone is over the window was not rescued at all: the planner
   kept the head pinned, found nothing else big enough to fold, and reported "nothing foldable".
   The pin is now a budget decision -- when the pinned message alone is over the target it is
@@ -25,6 +30,10 @@ where a proxy owns compression.
   failing.
 
 ### Rescue
+
+- pre-flight measures once per turn and then only counts the events appended since, so the check
+  that runs before every step is not a full re-pricing of the projection; a large paste or a
+  surface changed elsewhere forces a real measurement again.
 
 - **A message that cannot be folded around.** Every other tier replaces a *span* of history. When
   the overshoot is a single message -- a large file pasted into the newest turn -- there is no
@@ -92,7 +101,7 @@ where a proxy owns compression.
 
 ### Verification
 
-- 79 unit tests, including a replay of a real captured session log and of the exact wording from
+- 82 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
 - A sweep of every session log on the development machine: 174 logs, 32 oversized, 32 rescued,
   0 failures.

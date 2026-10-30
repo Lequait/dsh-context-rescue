@@ -4,16 +4,17 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + repair + trim + commands + market rules | `npm test` | 79 tests, 76 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 79 tests, 77 pass, 2 skipped |
+| Unit + fold + rescue + repair + trim + commands + market rules | `npm test` | 82 tests, 79 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 82 tests, 80 pass, 2 skipped |
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 12 files |
-| Three failure scenarios | `npm run simulate` | all pass |
+| Four failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 25 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
 | Sweep of every captured session log | `npm run scan` | 174 logs, 32 oversized, 32 rescued, 0 failed |
 | The real application boots and mounts the bundle | `npm run boot-check` | 18 assertions: a planted throw is reported under the plugin entry, the real package mounts without one, and it still mounts after installing `billion-context` into the same profile |
 | The host's own `Session` class (from the app bundle) | `npm run host-session` | 174 logs seeded, 65 folded (30 via pre-flight), 109 unseedable/skipped, 0 failed |
+| Cost of a rescue and of the pre-step check | `node scripts/dev/rescue-bench.mjs` | rescue median 1.1 s, p95 7.9 s over the 19 largest captured logs (most of it is loading the log); pre-flight median cold 16 ms, warm 0 ms — the second check in a turn does not re-measure |
 | The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Installed the way a user installs it | `npm run e2e-install` | 10 assertions: `dsh plugin --profile … add <tarball>` creates the profile, switches the bundle on, and the host loader resolves the patch from it; the profile is removed afterwards |
 | Installed from the published spec | `npm run e2e-install -- --git` | 11 assertions through the same CLI, but with `git+https://github.com/Lequait/dsh-context-rescue.git#<ref>` — the line the README tells users to run — so the git source, not just the tarball, is proven to install and register |
@@ -113,7 +114,7 @@ Requirements that apply to this repo, checked against the guide on 2026-10-30:
 | --- | --- |
 | `dsh.bundle` manifest in `package.json` | present (`bundle.patch`) |
 | [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic | set on `Lequait/dsh-context-rescue` |
-| real, working code | 79 tests, eight host-side gates |
+| real, working code | 82 tests, eight host-side gates |
 | repo at least **1 day old** | created 2026-10-30T10:28Z, so submit no earlier than 2026-10-31T10:28Z |
 | description states function only | no superlatives; every claim above maps to `lib/` |
 

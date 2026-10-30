@@ -117,6 +117,14 @@ session, then from `windowFallback`, and it is cached per target so a turn does 
 once per step. T2 is deliberately skipped here: the host engine has its own pre-step hook, and
 borrowing it would compact twice for one overshoot.
 
+Measuring a large projection is the expensive part of a rescue — on this machine the full ladder
+runs at a 1.1 s median, and almost all of it is pricing nodes. A pre-step hook runs on every step,
+so it measures **once per turn** and afterwards only counts what was appended since: the second
+check of a turn costs nothing measurable and still notices a large paste (any new message over
+4,000 characters forces a real re-measurement, and so does a surface whose node count no longer
+matches the cached one — someone else folded). `node scripts/dev/rescue-bench.mjs` prints the
+distribution for the largest logs on this machine.
+
 ## What it does when a request fails
 The listener runs on the `agent/request-error` waterfall, which fires for every failed request
 regardless of the code the host assigned.
