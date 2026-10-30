@@ -18,6 +18,10 @@ jobs:
         node: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the publish rehearsal pushes a clone of this checkout into a bare remote,
+          # and git refuses to push a shallow history
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}

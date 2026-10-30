@@ -87,6 +87,17 @@ const bare = path.join(workspace, 'remote.git');
 
 process.stdout.write(`workspace   ${workspace}\n`);
 
+// A shallow checkout cannot be rehearsed: its clone inherits the shallow boundary, and git
+// refuses to push a shallow history to a bare remote ("shallow update not allowed"). Say so
+// instead of reporting a fake pass — the CI checkout uses fetch-depth 0 for exactly this.
+if (fs.existsSync(path.join(ROOT, '.git', 'shallow'))) {
+  cleanupDir(workspace);
+  process.stderr.write('publish rehearsal needs a full checkout: this one is shallow.\n'
+    + 'run `git fetch --unshallow`, or use actions/checkout with `fetch-depth: 0`.\n');
+  process.exitCode = 1;
+  process.exit();
+}
+
 try {
   process.stdout.write('1. clone this checkout and create a bare remote\n');
   execFileSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, clone], { stdio: ['ignore', 'pipe', 'pipe'] });

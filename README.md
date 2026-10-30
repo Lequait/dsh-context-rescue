@@ -268,7 +268,9 @@ directory, creates a bare repository as the remote, runs the real script against
 asserts what a host would see — the pushed branch, a `market/index.json` that the host's own
 `parseMarketIndex` accepts, an entry pinned to the commit that carried the code (not to the
 index commit itself), the commit-pinned `git+…#<commit>` install spec, and repository metadata
-written into the pushed `package.json`.
+written into the pushed `package.json`. It needs a full checkout: git refuses to push a shallow
+history, so the script says so and exits non-zero instead of pretending to pass (CI checks out
+with `fetch-depth: 0`).
 
 ## When it does not rescue
 
