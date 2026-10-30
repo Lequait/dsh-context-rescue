@@ -194,8 +194,10 @@ tools answer through the service, and — with a host compaction engine mounted 
 still routes to that engine while the rescue still completes on the zero-model tier.
 
 `install-smoke` is the packaging gate: `npm pack` decides what ships (the `files` list),
-the tarball installs as a dependency in a throwaway project, and the **host's own**
-`bundlePatchPaths`/`loadOverlayPatches` resolve the patch from the installed path. A file
+the tarball installs as a dependency in a throwaway project, the **host's own**
+`bundlePatchPaths`/`loadOverlayPatches` resolve the patch from the installed path, and
+`evaluatePluginCompatibility` accepts the installed manifest — with a deliberately
+unsatisfiable `engines.dsh` checked alongside it, so the gate cannot pass vacuously. A file
 dropped from `files`, or a patch resolved against the wrong directory, fails there and nowhere
 else — the other gates read the source tree.
 

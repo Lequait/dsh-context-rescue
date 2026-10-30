@@ -95,6 +95,19 @@ async function main() {
         entries.some((entry) => entry.id === 'context-rescue' && entry.name === 'dsh-context-rescue'),
         JSON.stringify(entries),
       );
+
+      // The host silently skips a bundle whose compatibility check fails, so a
+      // wrong engines range would make the package install and do nothing. The
+      // verdict is `undefined` when compatible and an object naming the unmet
+      // requirement when not, which also gives us a negative control below.
+      const verdict = appBoot.evaluatePluginCompatibility(manifest);
+      check('the host accepts the installed package as compatible', verdict === undefined, JSON.stringify(verdict));
+      const unsatisfiable = appBoot.evaluatePluginCompatibility({ ...manifest, engines: { node: '>=20', dsh: '>=99.0.0' } });
+      check(
+        'the compatibility gate is not vacuous',
+        unsatisfiable !== undefined && JSON.stringify(unsatisfiable).includes('engines.dsh'),
+        JSON.stringify(unsatisfiable),
+      );
     }
 
     const entry = await import(`file://${path.join(installed, 'index.js').replaceAll('\\', '/')}`);
