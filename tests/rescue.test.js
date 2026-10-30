@@ -42,6 +42,29 @@ test('rescue folds the oldest span and asks for a retry', async () => {
   assert.equal(report.tiers.at(-1).tier, 'mechanical-fold');
 });
 
+test('a host session that only exposes snapshotEvents() is still folded', async () => {
+  const inner = sessionWithLongHistory();
+  // The host's own Session class has no `events` property: it exposes
+  // `snapshotEvents()` (and `ownEvents()`). Reading `.events` saw an empty list
+  // on a real session and reported "nothing foldable".
+  const session = {
+    get surface() {
+      return inner.surface;
+    },
+    append: (...args) => inner.append(...args),
+    eventAt: (seq) => inner.eventAt(seq),
+    snapshotEvents: () => inner.events,
+  };
+  const ctx = fakeContext({ llm: fakeLlm(60000) });
+  const config = resolveConfig({});
+
+  const report = await rescue(ctx, { agent: { session }, session, failure: OVERFLOW, provider: 'p', config });
+
+  assert.equal(report.action, 'retry');
+  assert.ok(report.after.totalTokens < report.before.totalTokens);
+  assert.ok(report.fold.digestChars > 0, 'the digest must be built from the snapshot events');
+});
+
 test('a lane refusal from billion-context falls back to the zero-model fold and is remembered', async () => {
   const session = sessionWithLongHistory();
   const refusal = Object.assign(new Error('dsh native compaction call refused by billion-context: bili owns compression on this lane'), {
