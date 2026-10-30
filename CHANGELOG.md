@@ -1,8 +1,22 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.2.0 — 2026-10-31
 
-First release. The plugin listens on `agent/request-error`, the same waterfall the host's own
+Everything below shipped after 0.1.0 went public (repository and market index).
+
+### What 0.2.0 adds on top of 0.1.0
+- A pre-flight check on `agent/pre-step` that folds *before* the request is built, so the
+  expensive path (a 400, then a retry) is no longer the first line of defence.
+- A fourth tier that replaces a single message -- or one tool call and its result -- that is
+  too large to survive inside the window, keeping its head and tail.
+- Self-healing for a compaction transaction a crash left open, and a checkpoint that keeps the
+  file paths out of tool arguments that used to live inside JSON strings.
+- `/rescue-status` previews what a rescue would do, counts the request the host would actually
+  send, and names the exhausted-verdict case instead of claiming nothing could be folded.
+
+### The listener, unchanged since 0.1.0
+
+The plugin listens on `agent/request-error`, the same waterfall the host's own
 compaction uses, and turns a context-window rejection into a rewritten projection that the next
 attempt can send. It never needs the model to summarise anything, so it keeps working on a lane
 where a proxy owns compression.
@@ -191,3 +205,11 @@ where a proxy owns compression.
 - A mount check inside the installed host's own cordis container (25 assertions, including the
   host's real `CommandRuntime`), a package install smoke (16 assertions) and a publish rehearsal
   against a bare remote (18 assertions).
+
+## 0.1.0 — 2026-10-30
+
+First published version: the `agent/request-error` listener, the three tiers that never need the
+model (`toolResultPruner` prune, a borrowed host compaction engine, and a zero-model mechanical
+fold), the `/rescue` and `/rescue-status` commands, and the three model-facing tools. Pinned by the
+market index entry, so `dsh plugin add git+https://github.com/Lequait/dsh-context-rescue.git` at
+that commit still installs exactly this.
