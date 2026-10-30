@@ -11,9 +11,9 @@ Everything that can be built without credentials is already done and green:
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 25 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
-| Sweep of every captured session log | `npm run scan` | 168 logs, 32 oversized, 32 rescued, 0 failed |
+| Sweep of every captured session log | `npm run scan` | 171 logs, 32 oversized, 32 rescued, 0 failed |
 | The real application boots and mounts the bundle | `npm run boot-check` | 18 assertions: a planted throw is reported under the plugin entry, the real package mounts without one, and it still mounts after installing `billion-context` into the same profile |
-| The host's own `Session` class (from the app bundle) | `npm run host-session` | 168 logs seeded, 65 folded (30 via pre-flight), 103 unseedable/skipped, 0 failed |
+| The host's own `Session` class (from the app bundle) | `npm run host-session` | 171 logs seeded, 65 folded (30 via pre-flight), 106 unseedable/skipped, 0 failed |
 | The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Installed the way a user installs it | `npm run e2e-install` | 10 assertions: `dsh plugin --profile … add <tarball>` creates the profile, switches the bundle on, and the host loader resolves the patch from it; the profile is removed afterwards |
 | Installed from the published spec | `npm run e2e-install -- --git` | 11 assertions through the same CLI, but with `git+https://github.com/Lequait/dsh-context-rescue.git#<ref>` — the line the README tells users to run — so the git source, not just the tarball, is proven to install and register |

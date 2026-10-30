@@ -270,7 +270,7 @@ sessions are captured, and both commands recompute them.
 the `Session` class out of the installed app bundle and replays captured logs through it, so the
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 168 logs seed, 65 fold (twice each, to prove a folded session can be
+next request would carry. 171 logs seed, 65 fold (twice each, to prove a folded session can be
 folded again), 30 of those folds come from the pre-flight path before any request failed, and the rest are skipped because the host itself cannot re-seed them in isolation
 (a foreign plugin's message projection, or a pre-v4 log).
 
