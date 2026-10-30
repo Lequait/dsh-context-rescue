@@ -13,7 +13,8 @@
   └─ context-rescue: overflow detected (gw-prose, score 0.95)
      ├─ T1 裁剪工具输出     → 宿主未提供
      ├─ T2 宿主压缩引擎     → 代理拒绝，本进程内该车道永久关闭
-     └─ T3 机械折叠         → 956 节点 → 169 节点，991,512 → 298,595 tokens
+     ├─ T3 机械折叠         → 956 节点 → 169 节点，991,512 → 298,595 tokens
+     └─ T4 超大单条消息     → 仅当历史只有一条巨消息时：保留它的开头与结尾
   └─ 重试同一步 → 200 OK
 ```
 
@@ -113,13 +114,16 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 3. **规划**：用宿主自己的配对规则算安全切点（工具调用是 `assistant/message` 里的
    `tool-call` block，结果是 `tool/result`，镜像事件不动余额）。保留钉住的头部和最近尾部；
    遇到未闭合的 compaction 事务直接拒绝出计划。
-4. **三档阶梯**：
+4. **四档阶梯**：
    - **T1** 用宿主暴露的 pruner 裁剪工具输出（最便宜，零模型）；
    - **T2** 请宿主的压缩引擎做它本该做的事：`compactIfNeeded(agent, 'context-overflow', signal)`；
      借来的引擎只有把投影**真的变小**才算救活，什么都没做的 no-op 会继续落到 T3；
      若被代理拒绝（`dsh_compaction_refused`），记下来，本进程内不再问第二次；
    - **T3** 写检查点：`compaction/start` → `compaction/prune` → `user/message`（`surfaceOp: replace`）
      → `compaction/end`，正文是折叠区间的结构化摘要。
+   - **T4** 当整段超窗的其实**只有一条消息**（比如刚贴进来的一整个文件）时，没有区间可折：
+     把那条消息本身换成「开头 + 结尾」的摘录，并在检查点里写明原文长度与被丢弃的中间部分。
+     只对删掉它仍能保持工具调用配对完整的文本消息生效；孤儿 `tool/result` 之类一律不碰。
 5. **只重试一次**：返回 `{ kind: 'retry' }`，让循环用变小后的投影重发同一步。全档失败或
    超出每轮预算就 `next()` 交出控制权，绝不让真实错误被吞掉。
 
@@ -155,6 +159,8 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 |---|---|---|
 | `mode` | `"auto"` | `auto` 急救；`diagnose` 只报告不改写；`fold` 直接机械折叠 |
 | `zeroModelOnly` | `false` | 永不调用模型/压缩引擎，直接走机械折叠 |
+| `trimOversizedMessages` | `true` | 单条消息自己就装不下时，用它的开头+结尾替换它 |
+| `excerptChars` | `3000` | 替换时首尾各保留多少字符 |
 | `allowModelCompaction` | `true` | 是否允许 T2 |
 | `retainRatio` | `0.25` | 作为最近尾部保留的占比 |
 | `retainMinTokens` / `retainMaxTokens` | `4000` / `40000` | 尾部长度的上下限 |

@@ -15,7 +15,8 @@ same step, so the session continues instead of dying.
   └─ context-rescue: overflow detected (gw-prose, score 0.95)
      ├─ T1 prune tool output      → not available
      ├─ T2 host compaction        → refused by proxy, lane blocked for this process
-     └─ T3 mechanical fold        → 956 nodes → 169 nodes, 991,512 → 298,595 tokens
+     ├─ T3 mechanical fold        → 956 nodes → 169 nodes, 991,512 → 298,595 tokens
+     └─ T4 oversized message      → only when history is one huge message: keep its head and tail
   └─ retry step → 200 OK
 ```
 
@@ -137,6 +138,11 @@ regardless of the code the host assigned.
      (`dsh_compaction_refused`), remember that and never ask again in this process.
    - **T3** — write a checkpoint: `compaction/start` → `compaction/prune` → `user/message` with
      `surfaceOp: replace` → `compaction/end`, with a structured digest of the folded span.
+   - **T4** — when the overshoot *is* one message (a file pasted into the newest turn), there is
+     no span to fold around it: replace that message with its own head and tail, and state the
+     original length and what was dropped. Only text messages whose removal keeps tool pairing
+     balanced qualify; an orphan `tool/result` or an assistant message carrying calls is never
+     touched.
 5. **Retry once.** Return `{ kind: 'retry' }` so the loop resends the same step against the
    now-smaller surface. If every tier fails, or the per-turn budget is spent, delegate with
    `next()` and let the host report the real error.
@@ -178,6 +184,8 @@ All keys are optional; pass them through the plugin's config block.
 |---|---|---|
 | `mode` | `"auto"` | `auto` rescues, `diagnose` only reports, `fold` folds without a tier ladder |
 | `zeroModelOnly` | `false` | never call the model/compactor; go straight to the mechanical fold |
+| `trimOversizedMessages` | `true` | when one message alone overflows, replace it with its own head and tail |
+| `excerptChars` | `3000` | characters kept from each end when that happens |
 | `allowModelCompaction` | `true` | allow T2 (the host engine) |
 | `retainRatio` | `0.25` | share of the current surface kept as the recent tail |
 | `retainMinTokens` / `retainMaxTokens` | `4000` / `40000` | clamps for the retained tail |

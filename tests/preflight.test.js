@@ -133,3 +133,20 @@ test('the pre-step listener always delegates to the host, even when the rescue b
   assert.match(logged, /pre-flight failed, letting the step continue/u);
   assert.match(logged, /events exploded/u);
 });
+
+test('pre-flight rescues a step whose overshoot is one message', async () => {
+  const session = new FakeSession();
+  session.append('system/message', { message: { content: [{ type: 'text', text: 'sys' }] } });
+  session.append('user/message', { message: { content: [{ type: 'text', text: `HEAD${'内容'.repeat(45000)}TAIL` }] } });
+  const ctx = fakeContext({ llm: fakeLlm(60000) });
+  const config = resolveConfig({});
+  const before = measure(ctx, session).totalTokens;
+  assert.ok(before > 60000, `seed must exceed the window: ${before}`);
+
+  const report = await preflight(ctx, { agent: { session }, session, config, turn: 5 });
+
+  assert.equal(report.action, 'fold');
+  assert.ok(report.after.totalTokens < 60000);
+  assert.ok(report.tiers.some((tier) => tier.tier === 'oversized-message' && tier.ok === true));
+  assert.equal(hasOpenCompactionTransaction(session.events), false);
+});

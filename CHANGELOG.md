@@ -24,6 +24,16 @@ where a proxy owns compression.
   folded like anything else, and the digest says so, because keeping it would keep every request
   failing.
 
+### Rescue
+
+- **A message that cannot be folded around.** Every other tier replaces a *span* of history. When
+  the overshoot is a single message -- a large file pasted into the newest turn -- there is no
+  span: folding around it leaves the message that does not fit. That message is now replaced by
+  its own head and tail (`excerptChars`, default 3000 each) with the original length and the
+  dropped middle stated in the checkpoint. Only text messages whose removal keeps tool pairing
+  balanced qualify, so the pass can never orphan a tool result. Runs in both the failure ladder
+  and the pre-flight path, and can be switched off with `trimOversizedMessages: false`.
+
 ### Self-healing
 
 - A fold is a bracket (`compaction/start` … `compaction/end`) written inside one turn, and a

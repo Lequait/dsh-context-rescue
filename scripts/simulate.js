@@ -99,18 +99,43 @@ async function scenarioLaneRefusal() {
   return rescued.ok && engineCalls === 1;
 }
 
-/** Scenario 3: nothing foldable (single oversized message) — must fail honestly. */
-async function scenarioNothingFoldable() {
+/**
+ * Scenario 3: the whole history is one oversized user message. There is no span
+ * to fold around it, so the message itself is replaced by its own head and tail.
+ */
+async function scenarioOversizedMessage() {
   const session = new FakeSession();
   session.append('system/message', { message: { content: [{ type: 'text', text: 'sys' }] } });
   session.append('user/message', { message: { content: [{ type: 'text', text: '巨型内容'.repeat(120000) }] } });
   const ctx = fakeContext({ llm: fakeLlm(EFFECTIVE_WINDOW), tools: { register: () => () => {} } });
   apply(ctx, {});
   const result = await runLoop({ session, ctx, withPlugin: true });
+  const checkpoint = session.events.find((event) => event.type === 'user/message'
+    && String(event.data?.message?.content?.[0]?.text ?? event.data?.content?.[0]?.text ?? '').includes('首尾摘录'));
+  line('场景 3', '整段历史只有一条超大 user 消息（没有可折的区间）');
+  line('  本插件', `${result.ok && checkpoint ? '✓' : '✗'} ${result.ok ? '把那条消息换成首尾摘录，请求得以发出' : `失败：${result.reason}`}`);
+  return Boolean(result.ok && checkpoint);
+}
+
+/**
+ * Scenario 4: the surface itself is corrupt (a tool result with no matching
+ * call). Nothing may be written: a fold here would have to invent pairing, and
+ * this plugin does not pretend a broken session was rescued.
+ */
+async function scenarioCorruptSurface() {
+  const session = new FakeSession();
+  session.append('system/message', { message: { content: [{ type: 'text', text: 'sys' }] } });
+  session.append('user/message', { message: { content: [{ type: 'text', text: 'go' }] } });
+  session.append('tool/result', { message: { content: [{ type: 'text', text: '孤儿结果'.repeat(120000) }] } });
+  const ctx = fakeContext({ llm: fakeLlm(EFFECTIVE_WINDOW), tools: { register: () => () => {} } });
+  apply(ctx, {});
+  const eventsBefore = session.events.length;
+  const result = await runLoop({ session, ctx, withPlugin: true });
   const delegated = result.log.some((entry) => entry.delegated);
-  line('场景 3', '整段历史只有一条超大消息（无可折叠区间）');
-  line('  本插件', `${delegated ? '✓' : '✗'} 不伪造成功，交回宿主（${delegated ? '已委托 next()' : '未委托'}）`);
-  return delegated && !result.ok;
+  const wrote = session.events.length !== eventsBefore;
+  line('场景 4', 'surface 本身损坏（孤立的 tool/result）');
+  line('  本插件', `${delegated && !wrote ? '✓' : '✗'} 不伪造成功，交回宿主（${delegated ? '已委托 next()' : '未委托'}${wrote ? '，但写入了事件' : ''}）`);
+  return delegated && !result.ok && !wrote;
 }
 
 /** Deep copy through the session's own serialisation surface. */
@@ -130,7 +155,8 @@ async function main() {
   process.stdout.write('='.repeat(64) + '\n');
   results.push(['场景 1 · 官方分类器漏判 + 窗口错配', await scenarioReported()]);
   results.push(['场景 2 · 压缩车道被占用', await scenarioLaneRefusal()]);
-  results.push(['场景 3 · 无可折叠区间', await scenarioNothingFoldable()]);
+  results.push(['场景 3 · 唯一的超大消息被截断', await scenarioOversizedMessage()]);
+  results.push(['场景 4 · surface 损坏时保持诚实', await scenarioCorruptSurface()]);
   process.stdout.write('='.repeat(64) + '\n');
   let failures = 0;
   for (const [name, ok] of results) {
