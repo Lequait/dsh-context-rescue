@@ -8,6 +8,11 @@ attempt can send. It never needs the model to summarise anything, so it keeps wo
 where a proxy owns compression.
 
 ### Rescue
+- **The request size is measured, not just the surface.** `deriveMessages()` is what
+  the provider receives; `/rescue-status` now reports its size next to the surface
+  price, and the host gate asserts that after every fold the derived request is
+  smaller than before and inside the window (65 of 65 folding logs pass).
+
 - **A defeated session is not measured twice.** If every tier fails for a session
   (a system prompt alone can be over the window), the plugin remembers that and
   stops re-measuring it on each request, so the failure costs one attempt instead

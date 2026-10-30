@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { FakeSession, fakeContext, fakeLlm, fakeMeter, seedConversation } from './fake-session.js';
 import { resolveConfig } from '../lib/config.js';
 import { describeSession, mechanicalFold, preflight, rescue, rescueStateOf } from '../lib/rescue.js';
-import { measure } from '../lib/measure.js';
+import { derivedTokensOf, measure } from '../lib/measure.js';
 import { hasOpenCompactionTransaction } from '../lib/plan.js';
 import { apply } from '../index.js';
 
@@ -390,4 +390,25 @@ test('pre-flight leaves a defeated session alone', async () => {
   assert.equal(report.action, 'pass');
   assert.match(report.reason, /defeated every tier/u);
   assert.equal(meter.calls, 0, 'a defeated session is not measured on every step');
+});
+
+test('the derived request is measured when the host can build one', () => {
+  const ctx = fakeContext({});
+  const without = { surface: { nodes: [] } };
+  assert.equal(derivedTokensOf(ctx, without), null, 'a session that cannot derive messages has no request size');
+
+  const session = new FakeSession();
+  session.append('user/message', { message: { content: [{ type: 'text', text: '甲'.repeat(120) }] } });
+  session.append('assistant/message', { message: { content: [{ type: 'text', text: '好的'.repeat(20) }] } });
+  session.append('tool/call', { call: { name: 'read_file' } });
+  const derived = derivedTokensOf(ctx, {
+    deriveMessages: () => [
+      { content: [{ type: 'text', text: '甲'.repeat(120) }] },
+      { content: [{ type: 'text', text: '好的'.repeat(20) }] },
+    ],
+  });
+  assert.ok(derived !== null);
+  assert.equal(derived.messages, 2);
+  assert.ok(derived.totalTokens >= 120, `the request must be priced at least by its text: ${derived.totalTokens}`);
+  assert.ok(derived.totalTokens < measure(ctx, session).totalTokens + 1000, 'the two prices stay in the same order of magnitude');
 });

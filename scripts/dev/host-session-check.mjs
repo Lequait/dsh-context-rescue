@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { loadSessionLog, reconstructSurface } from './session-log.mjs';
 import { allLogsUnder, expandHome } from './replay-session.mjs';
 import { DEFAULTS, mergeConfig } from '../../lib/config.js';
-import { eventsOf, measure, resolveWindow } from '../../lib/measure.js';
+import { derivedTokensOf, eventsOf, measure, resolveWindow } from '../../lib/measure.js';
 import { collectPaths } from '../../lib/util.js';
 import { applyFold } from '../../lib/fold.js';
 import { pairingCuts, planFold } from '../../lib/plan.js';
@@ -112,6 +112,12 @@ async function checkOne(Session, SessionId, logPath, config) {
     maxChars: config.maxDigestChars,
   });
 
+  // What the host would put on the wire before the fold. The surface price and
+  // the request price are different numbers, and the request is the one that has
+  // to be accepted.
+  const derivedBefore = derivedTokensOf(ctx, session);
+  assert.ok(derivedBefore !== null, 'host could not derive the request before the fold');
+
   // The decisive step: every append below is validated and projected by the host.
   const written = applyFold(session, {
     start: plan.start,
@@ -129,6 +135,17 @@ async function checkOne(Session, SessionId, logPath, config) {
   const messages = session.deriveMessages();
   assert.ok(Array.isArray(messages) && messages.length > 0, 'host derived an empty history');
   assert.equal(orphanToolResults(messages), 0, 'host history has a tool result without a call');
+
+  const derivedAfter = derivedTokensOf(ctx, session);
+  assert.ok(derivedAfter !== null, 'host could not derive the request after the fold');
+  assert.ok(
+    derivedAfter.totalTokens < derivedBefore.totalTokens,
+    `the request the host would send did not shrink: ${derivedBefore.totalTokens} -> ${derivedAfter.totalTokens}`,
+  );
+  assert.ok(
+    derivedAfter.totalTokens <= window.windowTokens,
+    `the request the host would send is still over the window: ${derivedAfter.totalTokens} > ${window.windowTokens}`,
+  );
 
   const flat = messages
     .flatMap((message) => (Array.isArray(message?.content) ? message.content : []))

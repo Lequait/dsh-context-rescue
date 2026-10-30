@@ -131,6 +131,18 @@ test('/rescue status is a read-only report', async () => {
   assert.equal(session.surface.nodes.length, nodesBefore, 'status must not rewrite the session');
 });
 
+test('/rescue status names the request the host would send', async () => {
+  const { session, commands } = setup();
+  // The renderer reports what the session can derive; a fake session does not
+  // derive messages, so one is supplied here.
+  session.deriveMessages = () => [{ content: [{ type: 'text', text: '甲'.repeat(2000) }] }];
+
+  const result = assertCommandResult(await commands.registered.get('rescue-status').handler({ agent: { session }, rawInput: '', signal: new AbortController().signal }));
+
+  assert.equal(result.kind, 'success');
+  assert.match(result.text, /request would carry ~2,000 tokens/);
+});
+
 test('/rescue-status reports without rewriting even when the session is oversized', async () => {
   const { session, context, commands } = setup();
   const nodesBefore = session.surface.nodes.length;

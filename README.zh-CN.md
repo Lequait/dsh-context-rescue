@@ -89,6 +89,13 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 仓库同时带了 `dsh-plugin` topic，按 topic 扫描的列表能自动发现它；条目也已投给两个策展列表
 （PR 记录在 `docs/PUBLISH.md`）。
 
+## 两个不同的计数
+
+`measure()` 数的是 surface 节点；真正要上游接受的却是**请求**，也就是
+`session.deriveMessages()` 生成的那批消息。这两个数并不相同：按前者看还装得下的会话，
+按后者看可能照样被拒。`/rescue-status` 两个都报，宿主闸门断言的也是后者——每次折叠之后，
+派生出的请求必须比折叠前小，而且必须在窗口以内。
+
 ## 救不回来的时候
 
 有些会话救不回来：光是系统提示词就已经超过窗口。插件会把每一档都试一次，然后把这条会话记为「已无解」，不再每个请求都重新测量一遍——否则那条会话的每个请求都要付一次完整测量、然后再以同样方式失败。这一步照常继续，请求照常发出，失败原样交回宿主。`/rescue`（或 `context_rescue` 的 `action: "rescue"`）总会再试一次；任何一次真正生效的救援都会让正常路径重新打开。

@@ -101,6 +101,15 @@ pick the entry          dsh-context-rescue — it installs the commit the entry 
 The repository also carries the `dsh-plugin` topic so topic-scanning lists pick it up, and the
 entry has been submitted to two curated lists (`docs/PUBLISH.md` records the PRs).
 
+## Two ways to count the same thing
+
+`measure()` prices the surface nodes; the provider is asked to accept the
+*request*, which is what `session.deriveMessages()` builds. Those are different
+numbers, and a session can look fine by the first and still be refused by the
+second. `/rescue-status` reports both, and the host gate asserts the second one:
+after every fold, the derived request must be smaller than before **and** under
+the window.
+
 ## When nothing can work
 
 Some sessions cannot be rescued: the system prompt alone can already be over the
