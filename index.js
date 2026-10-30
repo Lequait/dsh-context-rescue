@@ -81,6 +81,7 @@ export function apply(ctx, rawConfig) {
         provider: payload.provider,
         turn,
         step: payload?.step,
+        attempt: state.attempts,
         signal: payload?.signal,
         config,
       });

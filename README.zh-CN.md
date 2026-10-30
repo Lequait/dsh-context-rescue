@@ -174,7 +174,7 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
 
 覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算、no-op 借用引擎、
-本来就装得下的投影与计量精度。
+本来就装得下的投影、同一轮内第二次被拒时强制走阶梯、内部异常交还宿主，以及计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
 `DSH_SESSION_LOG` 时自动跳过。`node scripts/dev/scan-sessions.mjs` 会把本机所有会话日志扫一遍，
 每个超标会话都在**零模型调用**下救回来：157 个已捕获会话里有 34 个超过 196,608 窗口，34 个全部

@@ -230,3 +230,23 @@ test('an internal failure is logged and handed back to the host, never thrown', 
   const healthy = { agent: { session }, failure: OVERFLOW, provider: 'p', turn: 2, step: 1 };
   assert.deepEqual(await handler(healthy, next), { kind: 'retry' });
 });
+
+test('a second rejection in the same turn forces the ladder even when the projection fits', async () => {
+  const session = sessionWithLongHistory();
+  const ctx = fakeContext({ llm: fakeLlm(1_000_000), tools: { register: () => () => {} } });
+  apply(ctx, { maxAttemptsPerTurn: 2 });
+  const handler = ctx.listeners.get('agent/request-error');
+  const payload = { agent: { session }, failure: OVERFLOW, provider: 'p', turn: 3, step: 1 };
+  const next = async () => undefined;
+  const before = measure(ctx, session);
+
+  // The first rejection is measured against a roomy declared window, so the honest answer is
+  // "this already fits": retry the request untouched instead of spending context.
+  assert.deepEqual(await handler(payload, next), { kind: 'retry' });
+  assert.equal(measure(ctx, session).totalTokens, before.totalTokens);
+
+  // The gateway disagrees twice, so the measurement is not the whole story: fold anyway.
+  assert.deepEqual(await handler(payload, next), { kind: 'retry' });
+  assert.ok(measure(ctx, session).totalTokens < before.totalTokens,
+    `${measure(ctx, session).totalTokens} < ${before.totalTokens}`);
+});

@@ -199,7 +199,8 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
 
 The suite covers detection, pairing-safe planning, fold transactions, ladder behaviour, lane
-refusal memory, per-turn budgets, a no-op borrowed engine, an already-fitting projection and
+refusal memory, per-turn budgets, a no-op borrowed engine, an already-fitting projection, a second
+rejection that forces the ladder, an internal throw that is handed back to the host, and
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`

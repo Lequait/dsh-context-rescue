@@ -4,8 +4,8 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + commands + market rules | `npm test` | 42 tests, 39 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 42 tests, 40 pass, 2 skipped |
+| Unit + fold + rescue + commands + market rules | `npm test` | 43 tests, 40 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 43 tests, 41 pass, 2 skipped |
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 12 files |
 | Three failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 23 assertions pass |
