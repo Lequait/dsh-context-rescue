@@ -166,17 +166,25 @@ npm run list-pr -- --plan market/listings/kejixiaoliang.json
 | List | What was submitted | Status |
 | --- | --- | --- |
 | [kejixiaoliang/awesome-dsh-plugins](https://github.com/kejixiaoliang/awesome-dsh-plugins) | one line in `plugins/context-memory.md`, under **上下文审计 / 压缩 / 蒸馏** | [PR #173](https://github.com/kejixiaoliang/awesome-dsh-plugins/pull/173), open |
-| [beancookie/awesome-dsh-plugin](https://github.com/beancookie/awesome-dsh-plugin) | planned: one line in `README.md` and `README.en.md`, under **Sessions & Messages** | not submittable from this account, see below |
-| [bruc3van/awesome-dsh-plugin](https://github.com/bruc3van/awesome-dsh-plugin) | not attempted yet | same constraint |
+| [beancookie/awesome-dsh-plugin](https://github.com/beancookie/awesome-dsh-plugin) | planned in `market/listings/beancookie.json`: one line in `README.md` and `README.en.md`, under **Sessions & Messages** | not submittable from this account, see below |
+| [GordenSun/awesome-dsh-plugins](https://github.com/GordenSun/awesome-dsh-plugins) | planned in `market/listings/gordensun.json`: one line each in `README.en.md` and `README.md`, under **Orchestration, memory, and workflow** | same constraint |
+| [bruc3van/awesome-dsh-plugin](https://github.com/bruc3van/awesome-dsh-plugin) | not attempted | same constraint |
+| [Alex-Yanggg/awesome-DSH-plugin](https://github.com/Alex-Yanggg/awesome-DSH-plugin) | not attempted | same constraint (`awesome-DSH-plugin` and `awesome-dsh-plugin` are one name to GitHub) |
 
 The blocker is worth recording because it is not obvious from any list's rules: **GitHub allows one
 fork per repository name per account.** `Lequait/awesome-dsh-plugin` is already a fork of
-`awesome-dsh-plugin/awesome-dsh-plugin` (from the first wave), so forking `beancookie/awesome-dsh-plugin`
-lands on that same repository, whose `main` is at a different commit — every write then fails with
-`HTTP 422 Object does not exist`. `submit-list.mjs` now checks `parent.full_name` and says so instead
-of failing with the 422. The lists whose names do not collide remain open: `dshworks/awesome-dsh-plugins`,
-`Alex-Yanggg/awesome-DSH-plugin`, `GordenSun/awesome-dsh-plugins`.
+`awesome-dsh-plugin/awesome-dsh-plugin` (first wave), and `Lequait/awesome-dsh-plugins` is the fork
+made for the `kejixiaoliang` PR. Every other list whose name is one of those two — up to case, since
+GitHub treats `awesome-DSH-plugin` and `awesome-dsh-plugin` as the same name — shares that repository:
+the local fork's `main` sits at a different commit than the upstream's, so creating a branch from the
+upstream sha fails with `HTTP 422 Object does not exist`. `submit-list.mjs` now compares
+`parent.full_name` before writing anything and reports this instead of the 422.
 
+What is actually left: a list whose repository name is free (`diegosouzapw/awesome-omni-dsh-plugins`
+is one, but it generates its READMEs from a catalog across 43 locales and validates them in CI, so it
+wants a data-file PR rather than a line), or a second GitHub account, or waiting for the two open
+forks to be merged and deleting them. The plan files stay in `market/listings/` so that any of those
+paths is one command away.
 
 ## 4. npm
 

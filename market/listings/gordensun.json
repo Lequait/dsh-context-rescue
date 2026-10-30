@@ -1,0 +1,21 @@
+{
+  "upstream": "GordenSun/awesome-dsh-plugins",
+  "base": "main",
+  "branch": "add-dsh-context-rescue",
+  "title": "Add dsh-context-rescue: the after-the-fact path for a session that is already refused",
+  "body": "**What problem it solves.** Every other context tool here works *before* the request is refused.\nThis one works *after*: when the host has already failed a turn for exceeding the model context\nwindow, the session is normally stranded — the retry builds the same oversized request again, and\nthe refusal repeats. dsh-context-rescue intercepts that refusal, reads the real window out of the\ngateway message (the built-in classifier misses several wordings, including the\n`model's context window` one), folds the oldest span of history into a single checkpoint **without\na model call**, rewrites the session surface, and asks the host to retry that step once.\n\n**Why it is more representative than what is already listed.** The existing entries here\n(`distill`, `dsh-memory-evolve`, `dsh-sidechain`, `dsh-turn-rewind`) each change how a session is\norganised while it is healthy. This is the emergency path for a session that is already dead, and it\nis the only one that does not register the `compaction` service slot, so a preventive compactor\nkeeps working next to it.\n\n**Install.**\n\n```sh\ndsh plugin add git+https://github.com/Lequait/dsh-context-rescue.git#v0.2.3\n# or, once published: dsh plugin add dsh-context-rescue\n```\n\nTwo commands (`/rescue`, `/rescue-status`) plus three model-facing tools; four tiers: host\ntool-result pruner → host compaction engine → mechanical fold (readable checkpoint that keeps file\npaths) → head-and-tail excerpt for a single oversized message.\n\n**Evidence in the repository:** 140 unit tests; a replay through the host's own `Session` class over\n216 captured session logs (70 folded, 0 failures); real-app boot gates including the `web` shape;\nand a config schema the host validates.",
+  "edits": [
+    {
+      "path": "README.en.md",
+      "after": "- [dsh-message-edit](https://github.com/Moeblack/dsh-message-edit)",
+      "insert": "- [dsh-context-rescue](https://github.com/Lequait/dsh-context-rescue) — Rescues a session the host has already refused for exceeding the context window: reads the real window out of the error, folds the oldest span into one checkpoint with no model call, retries that step once, and reports what it did through `/rescue` and `/rescue-status`.",
+      "message": "Add dsh-context-rescue to Orchestration, memory, and workflow"
+    },
+    {
+      "path": "README.md",
+      "after": "- [dsh-message-edit](https://github.com/Moeblack/dsh-message-edit)",
+      "insert": "- [dsh-context-rescue](https://github.com/Lequait/dsh-context-rescue) — 抢救已经被上下文窗口拒掉的会话：从错误里读出真实窗口，零模型把最旧一段历史折成一个检查点，重试失败的那一步，并用 `/rescue` 与 `/rescue-status` 报告做了什么。",
+      "message": "把 dsh-context-rescue 加进「Agent 编排、记忆与工作流」"
+    }
+  ]
+}
