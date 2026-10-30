@@ -71,13 +71,44 @@ machine currently has neither, and no `gh` CLI.
 
 ## 3. Listing pull request
 
-Awesome lists accept a one-line entry. The text below states what is different about this plugin
-(after-the-fact rescue, zero model calls) rather than repeating "compaction":
+The list is generated from data files, so a submission is **one YAML file**, not a README line:
+`data/plugins/Lequait__dsh-context-rescue.yml` (this repository keeps the exact content in
+[`awesome-entry.yml`](awesome-entry.yml)). Verified against
+[`contributing.md`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md):
 
-```markdown
-- [dsh-context-rescue](https://github.com/OWNER/dsh-context-rescue) — Emergency rescue for
-  sessions already past the context window: detects the overflow the classifier misses, folds
-  history into a durable checkpoint with no model call, and retries the failed step.
+```yaml
+url: https://github.com/Lequait/dsh-context-rescue
+name: Lequait/dsh-context-rescue
+category: session
+description:
+  en: Recovers a session the host already refused for exceeding the context window — it re-checks
+    the gateway message the built-in classifier misses, takes the real window out of that message,
+    and folds the oldest span into one checkpoint without a model call (tool-result pruning, the
+    host compaction engine, or a mechanical digest fold), then retries the failed step.
+  zh: 抢救已经被上下文窗口拒掉的会话：补上宿主分类器漏判的网关文案，从失败信息里拿到真实窗口，
+    不调用模型把最旧的一段历史折成一个检查点（工具结果裁剪、借宿主压缩引擎、或纯机械摘要折叠），
+    然后重试失败的那一步。
+```
+
+Requirements that apply to this repo, checked against the guide on 2026-10-30:
+
+| Rule | State |
+| --- | --- |
+| `dsh.bundle` manifest in `package.json` | present (`bundle.patch`) |
+| [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic | set on `Lequait/dsh-context-rescue` |
+| real, working code | 44 tests, eight host-side gates |
+| repo at least **1 day old** | created 2026-10-30T10:28Z, so submit no earlier than 2026-10-31T10:28Z |
+| description states function only | no superlatives; every claim above maps to `lib/` |
+
+Open the pull request from a fork (the maintainers regenerate both READMEs on merge):
+
+```bash
+gh repo fork awesome-dsh-plugin/awesome-dsh-plugin --clone
+cp <this repo>/docs/awesome-entry.yml data/plugins/Lequait__dsh-context-rescue.yml
+git checkout -b add-dsh-context-rescue
+git add data/plugins/Lequait__dsh-context-rescue.yml
+git commit -m "Add Lequait/dsh-context-rescue"
+git push -u origin add-dsh-context-rescue
 ```
 
 ## 4. npm
