@@ -224,3 +224,28 @@ test('a fold never removes an event from the log', async () => {
   const surfaceSeqs = session.surface.nodes;
   assert.equal(surfaceSeqs.some((seq) => shadowed.includes(seq)), false, 'they left the surface, not the log');
 });
+
+test('a bracket that never opened is not closed', () => {
+  const session = new FakeSession();
+  seedConversation(session, { turns: 6, chars: 400 });
+  const ctx = ctxWithMeter();
+  const measurement = measure(ctx, session);
+  const plan = planFold(session, measurement, {
+    retainOptions: [2000], targetTokens: 1000, minFoldTokens: 100, pinFirstUserMessage: true,
+  });
+  assert.ok(plan);
+
+  const original = session.append.bind(session);
+  session.append = (type, data, opts) => {
+    if (type === 'compaction/start') throw new Error('disk full');
+    return original(type, data, opts);
+  };
+
+  assert.throws(() => applyFold(session, {
+    start: plan.start, end: plan.end, shadowedSeqs: plan.shadowedSeqs,
+    shadowedTokenCount: plan.shadowedTokens, text: 'x', turn: 2, kind: 'prune',
+  }), /disk full/u);
+
+  const ends = session.events.filter((event) => event.type === 'compaction/end');
+  assert.equal(ends.length, 0, 'a compaction/end for a bracket that never opened would claim a finished compaction');
+});

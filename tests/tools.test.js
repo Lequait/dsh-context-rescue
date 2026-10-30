@@ -151,3 +151,15 @@ test('the agent is found through any of the shapes a host may use', async () => 
     assert.equal(result.window.windowTokens, 60000);
   }
 });
+
+test('context_rescue does not report a fold it did not perform', async () => {
+  const { tools } = setup();
+  const session = new FakeSession();
+  seedConversation(session, { turns: 4, chars: 300 });
+
+  const result = await tools.registered.get('context_rescue').execute({ action: 'rescue' }, { agent: { session } });
+
+  assert.equal(result.ok, false, 'nothing was folded, so nothing succeeded');
+  assert.equal(result.attempted, false);
+  assert.match(result.reason, /already fits|nothing foldable|no tier/u);
+});

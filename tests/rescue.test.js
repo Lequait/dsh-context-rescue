@@ -476,3 +476,61 @@ test('pre-flight stops ignoring a session once the window grows', async () => {
   assert.equal(rescueStateOf(agent).hopeless, false, 'the verdict does not survive a window change');
   assert.ok(meter.calls > callsAfterGiving, 'a bigger window earns a real measurement');
 });
+
+test('a surface that grew since the verdict makes the ladder look again', async () => {
+  const session = hopelessSession();
+  const meter = countingMeter();
+  const ctx = fakeContext({ llm: fakeLlm(60000), tokenMeter: meter });
+  const config = resolveConfig({});
+  const agent = { session };
+
+  const first = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 1 });
+  assert.equal(first.action, 'pass');
+  assert.equal(rescueStateOf(agent).hopeless, true);
+  const callsAfterFirst = meter.calls;
+
+  // The verdict was reached on one shape of the history. The user keeps typing,
+  // and what made every tier decline can stop being true.
+  session.append('user/message', { content: [{ type: 'text', text: '甲'.repeat(200000) }] });
+
+  const second = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 2 });
+  assert.ok(meter.calls > callsAfterFirst, 'a surface that changed is measured again');
+  assert.doesNotMatch(second.reason, /not measured again/u, 'the old verdict is not inherited');
+});
+
+test('a budget of one attempt still folds instead of retrying untouched', async () => {
+  const session = sessionWithLongHistory();
+  const ctx = fakeContext({ llm: fakeLlm(1_000_000) });
+  const config = resolveConfig({ maxAttemptsPerTurn: 1 });
+  const agent = { session };
+
+  const before = measure(ctx, session).totalTokens;
+  const report = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 1, attempt: 1 });
+
+  assert.equal(report.action, 'retry');
+  assert.equal(report.attempted, true, 'the only attempt this turn has is used on a fold, not on a re-send');
+  assert.ok(measure(ctx, session).totalTokens < before, 'the projection actually shrank');
+});
+
+test('mode fold never borrows an engine that would summarise', async () => {
+  const session = sessionWithLongHistory();
+  const mb = fakeMeter();
+  let calls = 0;
+  const engine = {
+    async compactIfNeeded() {
+      calls += 1;
+      return null;
+    },
+  };
+  const ctx = fakeContext({ llm: fakeLlm(60000), tokenMeter: mb, services: { compaction: engine } });
+  const config = resolveConfig({ mode: 'fold' });
+  const agent = { session };
+
+  const report = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config, turn: 1 });
+
+  assert.equal(calls, 0, 'mode=fold promised no model call, and the host engine may summarise');
+  assert.equal(report.action, 'retry');
+  assert.ok(report.tiers.some((tier) => tier.tier === 'mechanical-fold' && tier.ok === true));
+  const host = report.tiers.find((tier) => tier.tier === 'host-compaction');
+  assert.match(String(host?.skipped), /mode=fold/u);
+});

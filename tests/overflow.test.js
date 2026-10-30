@@ -73,3 +73,18 @@ test('lane refusal is recognised from the billion-context 422', () => {
   assert.equal(isLaneRefusal(refusal, DEFAULTS.laneRefusalPatterns), true);
   assert.equal(isLaneRefusal({ message: 'plain failure' }, DEFAULTS.laneRefusalPatterns), false);
 });
+
+test('two weak signals and a number are not an overflow', () => {
+  // Both numbers can be the request's own, echoed back by a gateway in any error
+  // body. Without a strong wording, folding a session on this would cost context
+  // and change nothing about the failure.
+  const result = classifyFailure({ message: 'invalid_request: body 250000 bytes, 60000 tokens', code: 'INVALID_REQUEST' });
+  assert.equal(result.overflow, false, `score ${result.score}, matched ${result.matched.join(',')}`);
+  assert.ok(result.score >= 2, 'the weak probes still matched');
+});
+
+test('a strong wording plus a token figure is an overflow', () => {
+  const result = classifyFailure({ message: gateway10138, code: 'INVALID_REQUEST' });
+  assert.equal(result.overflow, true);
+  assert.ok(result.matched.some((id) => id === 'no-upstream-can-accept' || id === 'window-vs-budget'));
+});
