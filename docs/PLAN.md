@@ -95,8 +95,14 @@ A lane refusal (`dsh_compaction_refused`, `bili owns compression`) marks T2 perm
 blocked for the process, so the next failure jumps straight to T3 instead of re-asking a
 proxy that already said no. Attempts are counted per turn and capped (`maxAttemptsPerTurn`).
 
+The same ladder also runs one step earlier: on `agent/pre-step`, a projection that is already
+larger than the window is folded before the loop builds the request (T1 then T3; T2 stays with
+the host's own pressure hook so one overshoot is never compacted twice), while the pressure band
+is left untouched because that is ordinary compaction policy.
+
 Gate: 8 tests, including "the host engine is called exactly once, then never again" and
-"per-turn budget" → **passed**.
+"per-turn budget" → **passed**. Pre-flight: 6 more tests plus two assertions inside the real
+cordis mount → **passed**.
 
 ### Phase E — Operator surface (done)
 
@@ -185,7 +191,8 @@ and publish rehearsal first, then a tag/version equality guard, then `--provenan
 | Bundle patch | `cordis.patch.yml` parses and resolves through the host's own loader | verified: `bundlePatchPaths` + `loadOverlayPatches` returned the expected insert entry |
 | Manifest compatibility | host `evaluatePluginCompatibility` accepts the manifest, and rejects 0.1.x | verified: compatible on `0.2.1-rc.3`, `{"engines.dsh":">=0.2.0-rc.1"}` unmet on `0.1.5-rc.2` |
 | Market index entry | the generated entry passes the host's own `parseMarketIndex` and yields a commit-pinned install spec | verified: `parseMarketIndex` + `marketInstallTarget` on `0.2.1-rc.3` |
-| Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (22 assertions) |
+| Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (25 assertions) |
+| Pre-flight fold | a projection already larger than the window is folded on the real `agent/pre-step` waterfall before the request is built, the loop's decision comes back untouched, and the pressure band is left to the host | verified by `tests/preflight.test.js` (6 tests) and `scripts/dev/mount-check.mjs` §7 (2 assertions) |
 | Human commands | the host's own `CommandRuntime` lists `/rescue` and `/rescue-status`, executes them, and logs `command/run` + `command/done` | verified by `scripts/dev/mount-check.mjs` §6 (7 assertions) |
 | Installed the way a user installs it | `dsh plugin --profile <name> add <tarball>` — the app's own CLI, forwarding to pnpm in a real profile — produces a profile that depends on and enables the plugin, and the host loader resolves the patch inside it | verified by `scripts/dev/e2e-install.mjs` (10 assertions, throwaway profile removed afterwards) |
 | Installed from the published spec | The line in the README — `dsh plugin --profile <name> add git+https://github.com/Lequait/dsh-context-rescue.git#<ref>` — installs from GitHub, records the git spec, and lands in the profile bundle list | verified by `npm run e2e-install -- --git` (11 assertions) |
@@ -246,11 +253,13 @@ Each run asserts: the overflow wording is recognised, the **observed** window ov
 declared one, the ladder reaches the zero-model tier, the projection ends up under
 `fitRatio × window`, the surface stays well formed (`corrupt === false`), both fold boundaries
 are balance-safe, the transaction bracket closes, and the replacement carries
-`source.kind === 'compact-checkpoint'`. 34 of 157 captured logs on this machine are oversized; all 34 are rescued and none fail. Logs that are empty or already
+`source.kind === 'compact-checkpoint'`. Every log that is oversized is rescued and none fail. Logs that are empty or already
 fit are skipped rather than failed — the sweep (`node scripts/dev/scan-sessions.mjs`) reports
-`157 logs · 31 rescued · 0 failed`. The count fell from 34 to 31 when the surface
+`157 logs · 32 rescued · 0 failed`. The count fell from 34 to 31 when the surface
 became exact: `tool/call` and `tool/ptc-dispatch` are event types that the host never puts on a
-surface, so three logs that only looked oversized were already inside the window.
+surface, so three logs that only looked oversized were already inside the window. It rose to 32
+once the window is resolved from the provider named in the session header: one log belongs to a
+model with a smaller window than `windowFallback`.
 
 ## 6. Known limits
 

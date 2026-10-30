@@ -18,6 +18,11 @@ where a proxy owns compression.
 
 ### Rescue
 
+- **Pre-flight.** The same rescue also runs on `agent/pre-step`: when the projection is already
+  larger than the model window, nothing can be sent, so it is folded before the request is built.
+  Only a hard overflow is acted on -- the pressure band stays with the host's own compaction
+  policy -- and T2 is skipped so one overshoot is never compacted twice. The window is resolved
+  from the provider named in the session header and cached per target.
 - Detection that does not depend on the host's own classifier: strong wording probes, code
   matches, and a scoring rule where numbers alone never trigger a rewrite.
 - The window is the smaller of the declared context window and the number quoted in the failure
@@ -56,7 +61,7 @@ where a proxy owns compression.
 
 - 44 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
-- A sweep of every session log on the development machine: 157 logs, 31 oversized, 31 rescued,
+- A sweep of every session log on the development machine: 157 logs, 32 oversized, 32 rescued,
   0 failures.
 - The host's own `Session` class, loaded out of the app bundle, seeds 157 captured logs and folds
   65 of them in-process: every append is validated by the host's `validateSessionEventData`, the
@@ -67,6 +72,6 @@ where a proxy owns compression.
 - The marketplace path runs end to end: the published index is fetched over HTTPS, validated by the
   host's `parseMarketIndex`, turned into an install spec by `marketInstallTarget`, and that pinned
   commit is installed into a profile and loaded through the host's bundle loader (17 assertions).
-- A mount check inside the installed host's own cordis container (23 assertions, including the
+- A mount check inside the installed host's own cordis container (25 assertions, including the
   host's real `CommandRuntime`), a package install smoke (16 assertions) and a publish rehearsal
   against a bare remote (18 assertions).

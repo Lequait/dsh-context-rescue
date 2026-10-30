@@ -226,5 +226,26 @@ check(
   commandSession.events.map((event) => event.type).filter((type) => type.startsWith('command/')).join(','),
 );
 
+process.stdout.write('7. the pre-step waterfall folds before the request is built\n');
+
+// The host dispatches `agent/pre-step` as a waterfall whose payload also carries
+// `messages`, and whose terminal value is a decision the loop reads. A rescue
+// here must fold the projection *and* hand that decision back untouched.
+const preSession = new FakeSession();
+seedConversation(preSession, { turns: 24, chars: 9000 });
+const preAgent = { session: preSession, id: 'pre-flight' };
+const preNodes = preSession.surface.nodes.length;
+const preDecision = await root.waterfall(
+  'agent/pre-step',
+  { agent: preAgent, messages: [], turn: 9, step: 1, signal: new AbortController().signal },
+  () => Promise.resolve({ kind: 'accept' }),
+);
+check('the pre-step decision is passed through', preDecision?.kind === 'accept', JSON.stringify(preDecision));
+check(
+  'the projection was folded before dispatch',
+  preSession.surface.nodes.length < preNodes,
+  `${preNodes} → ${preSession.surface.nodes.length}`,
+);
+
 process.stdout.write(failures.length === 0 ? '\nload test passed\n' : `\nload test failed: ${failures.join(', ')}\n`);
 process.exitCode = failures.length === 0 ? 0 : 1;

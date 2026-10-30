@@ -85,8 +85,23 @@ HTTP and add that URL as an index source (Discover → index sources, or the `pl
 tool's index list). Publishing to a public index additionally needs the repository to exist:
 tag `dsh-plugin`, open a PR against an awesome list, and/or publish to npm.
 
-## What it does when a request fails
+## Before the request is sent
 
+Waiting for the 400 costs a round trip, and some sessions never recover from one (discussion
+#10138). So the same rescue also runs on `agent/pre-step`, one step earlier:
+
+1. measure the projection the loop is about to send;
+2. if it is already **larger than the model window**, the request cannot be accepted at all, so
+   fold it there — T1 prune, then the zero-model checkpoint;
+3. if it merely sits in the pressure band (`fitRatio × window` up to the window), do nothing:
+   that is ordinary compaction policy and it belongs to the host.
+
+The window comes from the model registry for the provider in the session header, then from the
+session, then from `windowFallback`, and it is cached per target so a turn does not resolve it
+once per step. T2 is deliberately skipped here: the host engine has its own pre-step hook, and
+borrowing it would compact twice for one overshoot.
+
+## What it does when a request fails
 The listener runs on the `agent/request-error` waterfall, which fires for every failed request
 regardless of the code the host assigned.
 
@@ -162,6 +177,7 @@ All keys are optional; pass them through the plugin's config block.
 | `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | proxy refusals that permanently block T2 |
 | `registerTools` | `true` | register the three tools |
 | `registerCommands` | `true` | register `/rescue` and `/rescue-status` when the host has a command registry |
+| `preflight` | `true` | fold on `agent/pre-step` when the projection is already over the window |
 | `verbose` | `true` | log rescue decisions to the session |
 
 ## Safety

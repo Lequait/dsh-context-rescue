@@ -4,14 +4,14 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + commands + market rules | `npm test` | 46 tests, 43 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 46 tests, 44 pass, 2 skipped |
+| Unit + fold + rescue + commands + market rules | `npm test` | 52 tests, 49 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 52 tests, 50 pass, 2 skipped |
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 12 files |
 | Three failure scenarios | `npm run simulate` | all pass |
-| Mount in the installed host's cordis 4 | `npm run mount-check` | 23 assertions pass |
+| Mount in the installed host's cordis 4 | `npm run mount-check` | 25 assertions pass |
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
-| Sweep of every captured session log | `npm run scan` | 157 logs, 31 oversized, 31 rescued, 0 failed |
+| Sweep of every captured session log | `npm run scan` | 157 logs, 32 oversized, 32 rescued, 0 failed |
 | The host's own `Session` class (from the app bundle) | `npm run host-session` | 157 logs seeded, 65 folded, 92 unseedable/skipped, 0 failed |
 | The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Installed the way a user installs it | `npm run e2e-install` | 10 assertions: `dsh plugin --profile … add <tarball>` creates the profile, switches the bundle on, and the host loader resolves the patch from it; the profile is removed afterwards |
@@ -100,7 +100,7 @@ Requirements that apply to this repo, checked against the guide on 2026-10-30:
 | --- | --- |
 | `dsh.bundle` manifest in `package.json` | present (`bundle.patch`) |
 | [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic | set on `Lequait/dsh-context-rescue` |
-| real, working code | 46 tests, eight host-side gates |
+| real, working code | 52 tests, eight host-side gates |
 | repo at least **1 day old** | created 2026-10-30T10:28Z, so submit no earlier than 2026-10-31T10:28Z |
 | description states function only | no superlatives; every claim above maps to `lib/` |
 

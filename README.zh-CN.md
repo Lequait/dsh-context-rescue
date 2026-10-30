@@ -73,6 +73,19 @@ DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `ind
 `plugin_market` 工具的索引列表）。要进公共索引则得先有仓库：打 `dsh-plugin` topic、
 向 awesome 列表提 PR、以及/或者发布到 npm。
 
+## 请求发出之前
+
+等到 400 才救，代价是一次白走的重试；而有些会话一次都救不回来（issue #10138）。所以同一套急救
+也挂在 `agent/pre-step` 上，早一步发生：
+
+1. 先量循环即将发出的投影；
+2. 如果它已经**超过模型窗口**，这个请求根本不可能被接受 —— 就地折叠：先 T1 裁剪，再走零模型检查点；
+3. 如果只是落在压力带（`fitRatio × 窗口` 到窗口之间），一律不动：那是普通压缩策略，归宿主管。
+
+窗口依次来自模型注册表（用会话头里的 provider）、会话自身、`windowFallback`，并按目标缓存，
+一个 turn 不会每步都去解析一次。这里**故意不走 T2**：宿主引擎有自己的 pre-step 钩子，借它会为
+同一次超窗压缩两遍。
+
 ## 请求失败之后它做什么
 
 挂在 `agent/request-error` 瀑布上 —— 这条钩子对**任何**失败都会触发，跟宿主给的是什么错误码
@@ -141,6 +154,7 @@ DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `ind
 | `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | 命中即永久关闭 T2 |
 | `registerTools` | `true` | 是否注册上述三个工具 |
 | `registerCommands` | `true` | 宿主有命令注册表时是否注册 `/rescue` 与 `/rescue-status` |
+| `preflight` | `true` | 投影已超窗时在 `agent/pre-step` 就地折叠 |
 | `verbose` | `true` | 把急救决策写进会话日志 |
 
 ## 安全边界

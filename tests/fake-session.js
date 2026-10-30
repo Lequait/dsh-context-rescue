@@ -20,6 +20,8 @@ export class FakeSession {
     this.seq = 0;
     this.appendLog = [];
     this.forceError = null;
+    this.provider = options.provider ?? 'fake-provider';
+    this.model = options.model ?? 'fake-model';
   }
 
   append(type, data, options) {
@@ -49,7 +51,7 @@ export class FakeSession {
   }
 
   requestHeader() {
-    return { model: this.model };
+    return { provider: this.provider, model: this.model };
   }
 }
 

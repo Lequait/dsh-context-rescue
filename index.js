@@ -15,7 +15,7 @@
 
 import { registerCommands } from './lib/command.js';
 import { resolveConfig } from './lib/config.js';
-import { log, rememberReport, rescue, rescueStateOf } from './lib/rescue.js';
+import { log, preflight, rememberReport, rescue, rescueStateOf } from './lib/rescue.js';
 import { registerTools } from './lib/tools.js';
 import { errorText } from './lib/util.js';
 
@@ -47,6 +47,36 @@ export function apply(ctx, rawConfig) {
     registerCommands(ctx, config);
   } catch (error) {
     log(ctx, 'warn', `command registration failed: ${errorText(error)}`);
+  }
+
+  /**
+   * Pre-flight: a projection that is already larger than the model window
+   * cannot be sent at all, so it is folded before the request is built. The
+   * request-error hook below stays the safety net for everything else.
+   */
+  if (config.preflight) {
+    ctx.on('agent/pre-step', async (payload, next) => {
+      const agent = payload?.agent;
+      const session = agent?.session;
+      if (!session || payload?.signal?.aborted) return next();
+      try {
+        const report = await preflight(ctx, {
+          agent,
+          session,
+          config,
+          turn: payload?.turn,
+          signal: payload?.signal,
+          provider: payload?.provider,
+          model: payload?.model,
+        });
+        if (report.attempted && config.verbose) {
+          log(ctx, 'info', `pre-flight ${report.action}: ${report.reason}; tokens ${report.before?.totalTokens} -> ${report.after?.totalTokens}`);
+        }
+      } catch (error) {
+        log(ctx, 'warn', `pre-flight failed, letting the step continue: ${errorText(error)}`);
+      }
+      return next();
+    });
   }
 
   /**
