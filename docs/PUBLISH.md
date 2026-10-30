@@ -12,6 +12,7 @@ Everything that can be built without credentials is already done and green:
 | Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
 | Sweep of every captured session log | `npm run scan` | 157 logs, 32 oversized, 32 rescued, 0 failed |
+| The real application boots and mounts the bundle | `npm run boot-check` | 11 assertions: a planted throw is reported under the plugin entry, the real package mounts without one |
 | The host's own `Session` class (from the app bundle) | `npm run host-session` | 157 logs seeded, 65 folded (30 via pre-flight), 92 unseedable/skipped, 0 failed |
 | The host's real compaction engine in the slot | `npm run coexist` | 14 assertions: `compaction-basic` keeps the slot, the borrow fails without a model, the zero-model fold finishes, the transaction closes |
 | Installed the way a user installs it | `npm run e2e-install` | 10 assertions: `dsh plugin --profile … add <tarball>` creates the profile, switches the bundle on, and the host loader resolves the patch from it; the profile is removed afterwards |
