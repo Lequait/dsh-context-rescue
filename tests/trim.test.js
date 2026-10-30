@@ -160,3 +160,43 @@ test('trimming can be switched off', async () => {
   assert.equal(session.events.length, eventsBefore);
   assert.equal(replacementText(session), '');
 });
+
+test('a single tool result that alone overflows is replaced with its call', async () => {
+  // The newest turn read one huge file. There is no span to fold around it, and
+  // the result cannot be dropped on its own without orphaning the call, so the
+  // call and its answer have to go together.
+  const session = new FakeSession();
+  session.append('system/message', { message: { content: [{ type: 'text', text: 'sys' }] } });
+  session.append('user/message', { message: { content: [{ type: 'text', text: 'read the log' }] } });
+  session.append('assistant/message', {
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'reading' },
+        { type: 'tool-call', toolCallId: 'call_big', name: 'read_file', args: { path: 'big.log' } },
+      ],
+    },
+  });
+  session.append('tool/call', { toolCallId: 'call_big', name: 'read_file', args: { path: 'big.log' } });
+  session.append('tool/result', {
+    toolCallId: 'call_big',
+    name: 'read_file',
+    content: [{ type: 'text', text: 'L'.repeat(300000) }],
+  });
+  const ctx = fakeContext({ llm: fakeLlm(WINDOW) });
+  const config = resolveConfig({});
+
+  const report = await rescue(ctx, {
+    agent: { session }, session, failure: OVERFLOW, provider: 'p', config, turn: 4,
+  });
+
+  assert.equal(report.action, 'retry');
+  assert.equal(excerptCount(session), 1, 'one excerpt replaces the call and its result');
+  assert.match(report.reason, /tool output/u);
+  const text = replacementText(session);
+  assert.match(text, /工具：read_file/u);
+  // Neither half of the pair may survive alone: that is a corrupt surface.
+  const types = measure(ctx, session).nodes.map((node) => session.eventAt(node.seq)?.type);
+  assert.equal(types.includes('tool/result'), false);
+  assert.equal(measure(ctx, session).totalTokens < WINDOW, true);
+});

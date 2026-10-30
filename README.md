@@ -150,7 +150,9 @@ regardless of the code the host assigned.
      no span to fold around it: replace that message with its own head and tail, and state the
      original length and what was dropped. Only text messages whose removal keeps tool pairing
      balanced qualify; an orphan `tool/result` or an assistant message carrying calls is never
-     touched.
+     touched on its own. When the oversize *is* a tool result, that result and the call answering
+     it are replaced together — dropping either half alone would orphan the other.
+
    The system prompt is never excerpted: an excerpt of the instructions would keep the request
    legal while quietly removing what the turn was told to do, so if that is the only thing left
    over the window the ladder reports a failure instead of pretending. Several pasted blocks at

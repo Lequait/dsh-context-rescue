@@ -18,6 +18,10 @@ where a proxy owns compression.
 
 ### Fixed
 
+- A single tool result larger than the window could not be rescued: it is not a text message, so
+  T4 skipped it, and dropping it alone would orphan the call that produced it. The call and its
+  result are now replaced together, which is the only removal that keeps pairing balanced.
+
 - A mechanical fold that left the projection over the window was reported as a rescue, so the
   host retried a request that was certain to fail again. Tiers now claim success only when the
   result actually fits, and the ladder continues to the tier that can still cut.
