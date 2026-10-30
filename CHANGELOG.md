@@ -38,7 +38,9 @@ where a proxy owns compression.
   `dsh_compaction_refused`), the refusal is remembered and the zero-model path is used from then
   on.
 - The `compaction` service slot is never registered; the plugin only borrows it, so it composes
-  with `dsh-smart-compact` and with the built-in engine.
+  with `dsh-smart-compact` and with the built-in engine. A coexistence gate mounts
+  `dsh-compaction-basic` next to the plugin and rescues anyway when that engine cannot
+  summarise, leaving both the engine and the container intact.
 
 ### Entry points
 
@@ -49,7 +51,7 @@ where a proxy owns compression.
 
 ### Verification
 
-- 43 unit tests, including a replay of a real captured session log and of the exact wording from
+- 44 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
 - A sweep of every session log on the development machine: 157 logs, 31 oversized, 31 rescued,
   0 failures.
