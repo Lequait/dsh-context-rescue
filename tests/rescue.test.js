@@ -64,10 +64,12 @@ test('a lane refusal from billion-context falls back to the zero-model fold and 
   assert.equal(hostTier.laneRefusal, true);
   assert.equal(rescueStateOf(agent).laneBlocked, true);
 
-  // A second failure must not touch the refusing engine again.
+  // A second failure must not touch the refusing engine again. The projection
+  // now fits, so the ladder stops before reaching any tier at all.
   const second = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config });
   assert.equal(calls, 1, 'the host engine is not retried once the lane refused it');
-  assert.match(String(second.tiers.find((tier) => tier.tier === 'host-compaction').skipped), /billion-context/);
+  assert.equal(rescueStateOf(agent).laneBlocked, true);
+  assert.match(String(second.reason), /already fits/);
 });
 
 test('diagnose mode detects without rewriting the session', async () => {
@@ -155,4 +157,42 @@ test('observed window from the failure text overrides an optimistic declaration'
   assert.equal(report.window.declared, 1000000);
   assert.equal(report.window.observed, 196608);
   assert.equal(report.window.windowTokens, 196608);
+});
+
+test('a borrowed engine that changes nothing is not counted as a rescue', async () => {
+  const session = sessionWithLongHistory();
+  let calls = 0;
+  const compaction = {
+    async compactIfNeeded() {
+      calls += 1;
+    },
+  };
+  const ctx = fakeContext({ llm: fakeLlm(60000), compaction });
+  const agent = { session };
+
+  const report = await rescue(ctx, { agent, session, failure: OVERFLOW, provider: 'p', config: resolveConfig({}) });
+  const hostTier = report.tiers.find((tier) => tier.tier === 'host-compaction');
+  assert.equal(calls, 1);
+  assert.equal(hostTier.ok, false, 'a no-op engine did not rescue anything');
+  assert.equal(hostTier.after, hostTier.before);
+  assert.equal(report.action, 'retry');
+  assert.match(String(report.reason), /mechanical digest fold/);
+});
+
+test('a projection that already fits is retried without being rewritten', async () => {
+  const session = sessionWithLongHistory({ turns: 4, chars: 400 });
+  const nodesBefore = session.surface.nodes.length;
+  const agent = { session };
+
+  const report = await rescue(fakeContext({ llm: fakeLlm(60000) }), {
+    agent,
+    session,
+    failure: OVERFLOW,
+    provider: 'p',
+    config: resolveConfig({}),
+  });
+  assert.equal(report.action, 'retry');
+  assert.match(String(report.reason), /already fits/);
+  assert.equal(session.surface.nodes.length, nodesBefore, 'nothing was folded');
+  assert.equal(report.tiers.length, 0);
 });

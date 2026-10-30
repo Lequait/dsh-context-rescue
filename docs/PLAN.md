@@ -157,7 +157,7 @@ bundle shape.
 | Bundle patch | `cordis.patch.yml` parses and resolves through the host's own loader | verified: `bundlePatchPaths` + `loadOverlayPatches` returned the expected insert entry |
 | Manifest compatibility | host `evaluatePluginCompatibility` accepts the manifest, and rejects 0.1.x | verified: compatible on `0.2.1-rc.3`, `{"engines.dsh":">=0.2.0-rc.1"}` unmet on `0.1.5-rc.2` |
 | Market index entry | the generated entry passes the host's own `parseMarketIndex` and yields a commit-pinned install spec | verified: `parseMarketIndex` + `marketInstallTarget` on `0.2.1-rc.3` |
-| Host container mount | plugin mounts in the installed app's cordis 4 and the tools land on the real `tools` service | verified by `scripts/dev/mount-check.mjs` (10 assertions) |
+| Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (15 assertions) |
 | Installed package | `npm pack` output installs as a dependency and the host bundle loader resolves `cordis.patch.yml` from the installed path | verified by `scripts/dev/install-smoke.mjs` |
 
 ## 5. Real-log evidence

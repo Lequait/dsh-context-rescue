@@ -12,7 +12,7 @@
     "index.js",
     "lib/",
     "cordis.patch.yml",
-    "market/",
+    "market/icon.svg",
     "docs/",
     "README.md",
     "README.zh-CN.md",
@@ -47,6 +47,7 @@
     "rescue"
   ],
   "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "license": "MIT"

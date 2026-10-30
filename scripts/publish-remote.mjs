@@ -156,8 +156,22 @@ async function main() {
     process.stdout.write('index entry accepted by the host parseMarketIndex\n');
   }
 
+  // npm metadata belongs to a published package: point it at the repository that now exists, so
+  // the registry page links back and `npm bugs` resolves.
+  const pkgFile = path.join(ROOT, 'package.json');
+  const metadata = {
+    repository: { type: 'git', url: `${repo.https}.git` },
+    homepage: `${repo.https}#readme`,
+    bugs: { url: `${repo.https}/issues` },
+  };
+  if (JSON.stringify({ ...pkg, ...metadata }) !== JSON.stringify(pkg)) {
+    fs.writeFileSync(pkgFile, `${JSON.stringify({ ...pkg, ...metadata }, undefined, 2)}\n`);
+    process.stdout.write('package.json now points at the repository\n');
+  }
+
   fs.writeFileSync(path.join(ROOT, 'market/index.json'), `${JSON.stringify(doc, undefined, 2)}\n`);
   git(['add', '-f', 'market/index.json']);
+  git(['add', 'package.json']);
   git(['commit', '-m', `chore(market): pin the index entry to ${commit.slice(0, 7)}`]);
   git(['push', remote, branch]);
 

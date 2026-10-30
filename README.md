@@ -94,8 +94,9 @@ regardless of the code the host assigned.
 4. **Rescue, in tiers.**
    - **T1** — prune tool output through whatever pruner the host exposes (cheapest, no model).
    - **T2** — ask the host's compaction engine to do what it would have done: `compactIfNeeded(agent, 'context-overflow', signal)`.
-     If a proxy refuses the lane (`dsh_compaction_refused`), remember that and never ask again
-     in this process.
+     A borrowed engine only counts as a rescue when the projection actually shrank; an engine
+     that resolves without doing anything falls through to T3. If a proxy refuses the lane
+     (`dsh_compaction_refused`), remember that and never ask again in this process.
    - **T3** — write a checkpoint: `compaction/start` → `compaction/prune` → `user/message` with
      `surfaceOp: replace` → `compaction/end`, with a structured digest of the folded span.
 5. **Retry once.** Return `{ kind: 'retry' }` so the loop resends the same step against the
@@ -144,11 +145,16 @@ All keys are optional; pass them through the plugin's config block.
 - **Never corrupts the surface.** Fold boundaries are balance-safe by the host's own rule; a
   cut that would split a tool call from its result is not used. A fold that throws closes its
   transaction bracket with `compaction/end{error}` instead of leaving the session mid-write.
+- **Never spends context for nothing.** If the measured projection already fits the window the
+  failure reported, it retries unchanged instead of folding — the gateway can count more than
+  the projection does, and a rewrite there would only cost history.
 - **Never loops.** At most `maxAttemptsPerTurn` rescues per turn, then it steps aside.
 - **Never lies.** If nothing foldable exists (a single mega-message, or a pinned head larger
   than the window) it reports that and delegates, so you see the real error.
-- **Never competes.** It does not register the `compaction` service; a preventive compactor
-  keeps working and gets first refusal at T2.
+- **Never competes.** It does not register the `compaction` service, so a preventive compactor
+  keeps its slot and gets first refusal at T2; with `zeroModelOnly` it never calls the lane at
+  all. `npm run mount-check` proves the slot still routes to the host engine after the plugin
+  mounts.
 
 ## Verification
 
@@ -171,7 +177,8 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
 
 The suite covers detection, pairing-safe planning, fold transactions, ladder behaviour, lane
-refusal memory, per-turn budgets and measurement accuracy. `tests/replay-real-log.test.js`
+refusal memory, per-turn budgets, a no-op borrowed engine, an already-fitting projection and
+measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. Driving the whole ladder against real
 logs from this machine rescues every oversized session with zero model calls: 1,087,491 →
@@ -182,8 +189,9 @@ against a 196,608-token window (14 sessions; `docs/PLAN.md` §5).
 4 container, so it exercises the real `inject`/`Service` wiring and the real
 `ctx.waterfall('agent/request-error', payload, next)` dispatch instead of a hand-rolled context.
 It asserts the tools land on the real `tools` service, the waterfall answers `{kind:'retry'}`,
-the surface is rewritten with a checkpoint, the per-turn budget stops the third attempt, and the
-tools answer through the service.
+the surface is rewritten with a checkpoint, the per-turn budget stops the third attempt, the
+tools answer through the service, and — with a host compaction engine mounted first — the slot
+still routes to that engine while the rescue still completes on the zero-model tier.
 
 `install-smoke` is the packaging gate: `npm pack` decides what ships (the `files` list),
 the tarball installs as a dependency in a throwaway project, and the **host's own**

@@ -81,6 +81,7 @@ DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `ind
 4. **三档阶梯**：
    - **T1** 用宿主暴露的 pruner 裁剪工具输出（最便宜，零模型）；
    - **T2** 请宿主的压缩引擎做它本该做的事：`compactIfNeeded(agent, 'context-overflow', signal)`；
+     借来的引擎只有把投影**真的变小**才算救活，什么都没做的 no-op 会继续落到 T3；
      若被代理拒绝（`dsh_compaction_refused`），记下来，本进程内不再问第二次；
    - **T3** 写检查点：`compaction/start` → `compaction/prune` → `user/message`（`surfaceOp: replace`）
      → `compaction/end`，正文是折叠区间的结构化摘要。
@@ -127,9 +128,13 @@ DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `ind
 
 - **绝不损坏投影**：切点按宿主自己的平衡规则计算，会把工具调用和它的结果切开的区间一律不用；
   写入中途抛错会补一条 `compaction/end{error}` 闭合事务括号。
+- **绝不为空忙花上下文**：如果按插件自己的计量，投影本来就在报错所说的窗口之内，就直接原样重试，
+  不做折叠 —— 网关可能比投影算得更多，那时改写只会白白烧掉历史。
 - **绝不循环**：每轮最多 `maxAttemptsPerTurn` 次，然后让位。
 - **绝不假装成功**：没有可折叠区间（单条巨消息，或钉住的头部本身超窗）时明确报告并交出控制权。
-- **绝不抢位**：不注册 `compaction` 服务槽，预防型压缩器照常工作，并且在 T2 有优先权。
+- **绝不抢位**：不注册 `compaction` 服务槽，预防型压缩器照常持有它，并且在 T2 有优先权；
+  开 `zeroModelOnly` 时根本不会碰这条车道。`npm run mount-check` 会先挂一个宿主压缩引擎，
+  再证明挂载插件后该槽仍然路由到它、且急救仍在零模型档完成。
 
 ## 验证
 
@@ -151,7 +156,8 @@ npm run install-smoke
 npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
 
-覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算与计量精度。
+覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算、no-op 借用引擎、
+本来就装得下的投影与计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
 `DSH_SESSION_LOG` 时自动跳过。把整条阶梯对着本机真实日志跑，每一个超标会话都能在**零模型调用**下
 救回来：1,087,491 → 51,257 tokens、991,512 → 94,082、933,308 → 50,890、497,020 → 51,538、
@@ -160,7 +166,8 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 `mount-check` 是集成闸门：它把插件装进**本机已安装 app** 自带的 cordis 4 容器，因此验证的是
 真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`
 派发，而不是手搓的假 context。它断言工具确实注册到真实 `tools` 服务、瀑布返回
-`{kind:'retry'}`、投影被改写成检查点、每轮预算拦住第三次、工具能通过服务响应。
+`{kind:'retry'}`、投影被改写成检查点、每轮预算拦住第三次、工具能通过服务响应，以及在先挂了
+宿主压缩引擎时服务槽仍归宿主、急救仍在零模型档完成。
 
 `install-smoke` 是打包闸门：`npm pack` 决定最终发出去的形状（受 `files` 白名单约束），
 tarball 被当作依赖装进一次性项目，再由**宿主自己的** `bundlePatchPaths`/`loadOverlayPatches`

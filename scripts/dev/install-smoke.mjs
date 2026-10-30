@@ -62,7 +62,12 @@ async function main() {
     const files = JSON.parse(listing)[0].files.map((file) => file.path);
     check('the tarball carries index.js', files.includes('index.js'));
     check('the tarball carries the bundle patch', files.includes('cordis.patch.yml'));
-    check('the tarball carries lib/ and market/', files.some((f) => f.startsWith('lib/')) && files.some((f) => f.startsWith('market/')));
+    check('the tarball carries lib/ and the icon', files.some((f) => f.startsWith('lib/')) && files.includes('market/icon.svg'));
+    check(
+      'the generated index entry stays out of the package',
+      !files.includes('market/index.json'),
+      'it must pin the commit it is pushed with, so it is produced per release instead',
+    );
     check('the tarball excludes tests/ and scripts/', !files.some((f) => f.startsWith('tests/') || f.startsWith('scripts/')));
 
     fs.writeFileSync(
