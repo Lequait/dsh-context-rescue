@@ -169,27 +169,48 @@ no model call. Every oversized log on this machine, in one pass:
 
 | Session | Tokens before | After rescue | Window |
 |---|---|---|---|
-| `63836d1c` | 1,087,491 | 51,257 | 196,608 |
-| `335a745b` | 1,067,701 | 51,761 | 196,608 |
+| `abc05855` | 575,630 | 51,321 | 196,608 |
+| `9a608fe8` | 933,308 | 50,889 | 196,608 |
+| `753cc91b` | 829,396 | 55,544 | 196,608 |
 | `eba32f8b` | 1,067,623 | 51,683 | 196,608 |
-| `d314a822` | 991,512 | 94,082 | 196,608 |
-| `9a608fe8` | 933,308 | 50,890 | 196,608 |
-| `753cc91b` | 829,396 | 55,545 | 196,608 |
-| `de748264` | 667,760 | 79,063 | 196,608 |
-| `0421090c` | 642,451 | 79,058 | 196,608 |
-| `abc05855` | 497,020 | 51,538 | 196,608 |
+| `335a745b` | 1,067,701 | 51,761 | 196,608 |
+| `63836d1c` | 1,087,491 | 51,257 | 196,608 |
 | `711575e5` | 444,738 | 95,612 | 196,608 |
-| `7b364d6b` | 402,212 | 48,421 | 196,608 |
-| `1d26101d` | 352,583 | 87,808 | 196,608 |
-| `96553c67` | 305,736 | 78,317 | 196,608 |
+| `aeb2b2fd` | 460,921 | 51,510 | 196,608 |
+| `ba2e8cf2` | 177,001 | 53,417 | 196,608 |
+| `d314a822` | 991,512 | 94,081 | 196,608 |
+| `08d7604d` | 400,907 | 51,752 | 196,608 |
+| `8c892e4e` | 893,098 | 49,098 | 196,608 |
+| `c689be83` | 1,278,034 | 94,731 | 196,608 |
+| `a5f65c42` | 818,516 | 52,303 | 196,608 |
+| `d1024be4` | 824,194 | 96,974 | 196,608 |
+| `e5701595` | 419,425 | 49,346 | 196,608 |
+| `7b364d6b` | 402,212 | 48,420 | 196,608 |
+| `50491777` | 368,392 | 51,518 | 196,608 |
+| `e66c6120` | 1,991,124 | 92,976 | 196,608 |
+| `a8e946e7` | 4,555,770 | 51,377 | 196,608 |
+| `0a7a80b4` | 2,023,494 | 96,105 | 196,608 |
+| `c1131526` | 241,565 | 47,975 | 196,608 |
 | `dbc6854d` | 200,442 | 48,959 | 196,608 |
+| `d1b1eba1` | 8,226,127 | 97,309 | 196,608 |
+| `7fab0a11` | 1,515,222 | 91,895 | 196,608 |
+| `d8b055c7` | 759,826 | 91,149 | 196,608 |
+| `61228a91` | 969,280 | 93,508 | 196,608 |
+| `86514f66` | 3,818,724 | 85,645 | 196,608 |
+| `0421090c` | 642,451 | 79,057 | 196,608 |
+| `de748264` | 667,760 | 79,062 | 196,608 |
+| `a29d7aba` | 1,268,709 | 77,752 | 196,608 |
+| `96553c67` | 305,736 | 78,316 | 196,608 |
+| `1d26101d` | 352,583 | 87,807 | 196,608 |
+| `eb01eb3c` | 196,240 | 82,196 | 196,608 |
 
 Each run asserts: the overflow wording is recognised, the **observed** window overrides the
 declared one, the ladder reaches the zero-model tier, the projection ends up under
 `fitRatio × window`, the surface stays well formed (`corrupt === false`), both fold boundaries
 are balance-safe, the transaction bracket closes, and the replacement carries
-`source.kind === 'compact-checkpoint'`. Logs that are empty or already fit are skipped rather
-than failed — an all-log sweep of the 44 sessions in `--H-AI--` produces 0 failures.
+`source.kind === 'compact-checkpoint'`. 34 of 157 captured logs on this machine are oversized; all 34 are rescued and none fail. Logs that are empty or already
+fit are skipped rather than failed — the sweep (`node scripts/dev/scan-sessions.mjs`) reports
+`157 logs · 34 rescued · 0 failed`.
 
 ## 6. Known limits
 

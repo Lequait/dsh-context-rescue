@@ -14,9 +14,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
+
+import { ReplaySession, expandHome, newestUnder } from '../scripts/dev/replay-session.mjs';
 
 import { loadSessionLog, reconstructSurface } from '../scripts/dev/session-log.mjs';
 import { measure } from '../lib/measure.js';
@@ -27,67 +27,9 @@ import { rescue } from '../lib/rescue.js';
 import { fits } from '../lib/measure.js';
 import { fakeMeter } from './fake-session.js';
 
-/** Expand `~` so the env var can be written the way a shell user expects. */
-function expand(path) {
-  if (path.startsWith('~')) return join(homedir(), path.slice(1));
-  return path;
-}
-
-/** The newest session log on this machine, used when only a directory is given. */
-function newestUnder(directory) {
-  const candidates = [];
-  const stack = [directory];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    let entries;
-    try {
-      entries = readdirSync(current, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      const child = join(current, entry.name);
-      if (entry.isDirectory()) stack.push(child);
-      else if (entry.name.endsWith('.jsonl.zstd')) candidates.push(child);
-    }
-  }
-  candidates.sort((left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs);
-  return candidates[0];
-}
-
 const raw = process.env.DSH_SESSION_LOG;
-const resolved = raw ? (existsSync(expand(raw)) && statSync(expand(raw)).isDirectory() ? newestUnder(expand(raw)) : expand(raw)) : undefined;
+const resolved = raw ? (existsSync(expandHome(raw)) && statSync(expandHome(raw)).isDirectory() ? newestUnder(expandHome(raw)) : expandHome(raw)) : undefined;
 const skip = resolved === undefined ? 'DSH_SESSION_LOG is not set' : !existsSync(resolved) ? `log not found: ${resolved}` : false;
-
-/** A session shell over a loaded log: appends land in memory, surface is live. */
-class ReplaySession {
-  constructor(events, surface) {
-    this.events = events;
-    this.surface = { nodes: surface };
-    this.seq = events.at(-1)?.seq ?? 0;
-    this.id = 'replay';
-  }
-
-  append(type, data, options) {
-    const seq = ++this.seq;
-    const event = { seq, time: seq, type, data: data ?? {}, ...(options ? { options } : {}) };
-    this.events.push(event);
-    const op = options?.surfaceOp;
-    if (op) {
-      const start = this.surface.nodes.indexOf(op.startSeq);
-      const end = this.surface.nodes.indexOf(op.endSeq);
-      assert.ok(start >= 0 && end >= start, 'replacement range must be on the surface');
-      this.surface.nodes.splice(start, end - start + 1, seq);
-    } else if (['system/message', 'user/message', 'assistant/message', 'tool/result', 'tool/call', 'tool/ptc-dispatch'].includes(type)) {
-      this.surface.nodes.push(seq);
-    }
-    return event;
-  }
-
-  eventAt(seq) {
-    return this.events.find((event) => event.seq === seq);
-  }
-}
 
 test('a real session log folds at a balanced cut without corrupting the surface', { skip }, (t) => {
   const { header, events } = loadSessionLog(resolved);

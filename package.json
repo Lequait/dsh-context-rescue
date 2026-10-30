@@ -30,7 +30,8 @@
     "market": "node scripts/run-host-node.mjs scripts/make-market-index.mjs",
     "inspect": "node scripts/run-host-node.mjs scripts/dev/inspect-session.mjs",
     "install-smoke": "node scripts/run-host-node.mjs scripts/dev/install-smoke.mjs",
-    "publish:remote": "node scripts/publish-remote.mjs"
+    "publish:remote": "node scripts/publish-remote.mjs",
+    "scan": "node scripts/dev/scan-sessions.mjs"
   },
   "dsh": {
     "bundle": {

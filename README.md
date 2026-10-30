@@ -161,6 +161,7 @@ All keys are optional; pass them through the plugin's config block.
 ```bash
 node --test                          # unit + replay
 node scripts/simulate.js             # three failure scenarios against the real code
+npm run scan                         # fold every oversized session log found on this machine
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
 # the same suite under the app's own Node, where the host validator is reachable
@@ -180,10 +181,11 @@ The suite covers detection, pairing-safe planning, fold transactions, ladder beh
 refusal memory, per-turn budgets, a no-op borrowed engine, an already-fitting projection and
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
-result; it is skipped unless `DSH_SESSION_LOG` is set. Driving the whole ladder against real
-logs from this machine rescues every oversized session with zero model calls: 1,087,491 →
-51,257 tokens, 991,512 → 94,082, 933,308 → 50,890, 497,020 → 51,538, 200,442 → 48,959,
-against a 196,608-token window (14 sessions; `docs/PLAN.md` §5).
+result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
+sweeps every log on this machine and folds each oversized one with zero model calls: 34 of 157
+captured sessions exceed a 196,608-token window and all 34 are rescued — 8,226,127 → 97,309,
+4,555,770 → 51,377, 1,087,491 → 51,257, 991,512 → 94,082, 933,308 → 50,890, 497,020 → 51,538 —
+with no failure (`docs/PLAN.md` §5).
 
 `mount-check` is the integration gate: it loads the plugin into the **installed app's** cordis
 4 container, so it exercises the real `inject`/`Service` wiring and the real
