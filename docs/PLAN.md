@@ -152,7 +152,11 @@ bundle shape — and, since the publish mechanics were the untested part, a rehe
 the real `publish-remote` script against a local bare repository and checks the pushed branch,
 the host-accepted entry and the pinned install spec (`npm run publish:rehearse`, 18 assertions), plus the
 first-push branch rule in both directions (an empty remote gets `main`, an existing `master` is kept).
-What no local gate can supply is the account that owns the target repository.
+The npm side is prepared the same way: `npm pack` produces the exact artifact, `npm publish
+--dry-run` authenticates against `registry.npmjs.org` with public access and stops only at the
+login, and `.github/workflows/release.yml` publishes from a tag (type check, tests, simulation,
+install smoke and publish rehearsal first, then a tag/version equality guard, then `--provenance`).
+What no local gate can supply is the account: no hosted repository, no npm login, no token.
 
 ## 4. Verification matrix
 
