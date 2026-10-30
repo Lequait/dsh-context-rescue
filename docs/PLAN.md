@@ -135,7 +135,11 @@ zero model calls (14 sessions, §5), 44-log sweep with 0 failures → **passed**
   <https://github.com/Lequait/dsh-context-rescue/raw/master/market/index.json>;
 - still open: the awesome-list submission is one data file (`docs/awesome-entry.yml`); the list
   refuses repositories younger than a day, and this one was created 2026-10-30T10:28Z. npm
-  publish still needs a login.
+  publish still needs a login. Two other listings took the entry the same day, both through the
+  GitHub API rather than a clone: `0xsline/awesome-deepseek-harness`
+  ([PR #768](https://github.com/0xsline/awesome-deepseek-harness/pull/768), both language READMEs)
+  and `AdamPlatin123/dsh-plugin-radar`
+  ([PR #986](https://github.com/AdamPlatin123/dsh-plugin-radar/pull/986), `PLUGINS.md` row).
 
 Two manifest decisions came out of inspecting the installed host (`0.2.1-rc.3`):
 
@@ -147,8 +151,9 @@ Two manifest decisions came out of inspecting the installed host (`0.2.1-rc.3`):
   single place that states the contract. Checked both ways: `0.2.1-rc.3` → compatible,
   `0.1.5-rc.2` → unmet requirement `{"engines.dsh":">=0.2.0-rc.1"}`.
 
-Gate: repository pushed and listing entry served → **passed**; the awesome-list PR and an npm
-release remain.
+Gate: repository pushed and listing entry served → **passed**; two listings submitted the same day
+(`awesome-deepseek-harness` #768, `dsh-plugin-radar` #986) → **open, awaiting maintainers**; the
+age-gated `awesome-dsh-plugin` PR and an npm release remain.
 
 The push itself ran through `npm run publish:remote`, which does not hold credentials: the
 machine's git credential helper supplied them. Two defects in that script only appear against a

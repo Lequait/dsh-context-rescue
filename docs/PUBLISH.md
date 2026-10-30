@@ -115,6 +115,19 @@ git commit -m "Add Lequait/dsh-context-rescue"
 git push -u origin add-dsh-context-rescue
 ```
 
+### 3a. Listings submitted on 2026-10-30
+
+`awesome-dsh-plugin` has a one-day age rule, so that one is scheduled for the next day. Two other
+lists took the submission immediately, both through the GitHub API (fork → one-line commit → pull
+request), with no clone in between:
+
+| List | What was submitted | Status |
+| --- | --- | --- |
+| [0xsline/awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness) | one line under **Context & Search** in `README.md` and `README.zh-CN.md` — the guide requires both languages in the same PR | [PR #768](https://github.com/0xsline/awesome-deepseek-harness/pull/768), open, mergeable, 2 files / +2 lines |
+| [AdamPlatin123/dsh-plugin-radar](https://github.com/AdamPlatin123/dsh-plugin-radar) | one row in the 🔌 单插件 table of `PLUGINS.md` (this list also auto-discovers repos carrying the `dsh-plugin` topic every day at 02:00) | [PR #986](https://github.com/AdamPlatin123/dsh-plugin-radar/pull/986), open, mergeable, 1 file / +1 line |
+| [awesome-dsh-plugin/awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) | `data/plugins/Lequait__dsh-context-rescue.yml` | waiting on the one-day age rule; scheduled for 2026-10-31 |
+
+
 ## 4. npm
 
 Either publish locally:
