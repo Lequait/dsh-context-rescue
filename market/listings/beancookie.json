@@ -1,0 +1,21 @@
+{
+  "upstream": "beancookie/awesome-dsh-plugin",
+  "base": "main",
+  "branch": "add-dsh-context-rescue",
+  "title": "Add Lequait/dsh-context-rescue (rescues a session the window already refused)",
+  "body": "Adds [dsh-context-rescue](https://github.com/Lequait/dsh-context-rescue) under **Sessions & Messages**.\n\nIt is the after-the-fact counterpart of a preventive compactor: when a request is refused for\nexceeding the context window, it re-checks the gateway message the built-in classifier misses,\ntakes the real window out of that message, folds the oldest span into one checkpoint **without a\nmodel call**, rewrites the session surface, and asks the host to retry the failed step once.\n`/rescue` and `/rescue-status` expose the same path by hand, and it does not register the\n`compaction` service, so a preventive compactor keeps its slot.\n\nEvidence is in the repository: 131 unit tests, and the fold is replayed through the host's own\n`Session` class over 216 captured session logs (70 folded, 0 failures) plus the real app boot.",
+  "edits": [
+    {
+      "path": "README.en.md",
+      "after": "- [lamost423/dsh-maze]",
+      "insert": "- [Lequait/dsh-context-rescue](https://github.com/Lequait/dsh-context-rescue) - Rescues a session the host already refused for exceeding the context window: it detects the refusal, folds the oldest span into one checkpoint with no model call, retries the failed step once, and reports what it did through /rescue and /rescue-status.",
+      "message": "Add dsh-context-rescue to Sessions & Messages"
+    },
+    {
+      "path": "README.md",
+      "after": "- [lamost423/dsh-maze]",
+      "insert": "- [Lequait/dsh-context-rescue](https://github.com/Lequait/dsh-context-rescue) — 抢救已经被上下文窗口拒掉的会话：识别失败信息、零模型把最旧的一段历史折成一个检查点、重试失败的那一步，并用 /rescue 与 /rescue-status 报告做了什么。",
+      "message": "把 dsh-context-rescue 加进「会话与消息」"
+    }
+  ]
+}

@@ -4,8 +4,8 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + repair + trim + tools + commands + schema + market rules | `npm test` | 131 tests, 128 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 131 tests, 129 pass, 2 skipped |
+| Unit + fold + rescue + repair + trim + tools + commands + schema + market + listing rules | `npm test` | 140 tests, 137 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 140 tests, 138 pass, 2 skipped |
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 14 files |
 | Four failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 26 assertions pass |
@@ -121,7 +121,7 @@ Requirements that apply to this repo, checked against the guide on 2026-10-30:
 | --- | --- |
 | `dsh.bundle` manifest in `package.json` | present (`bundle.patch`) |
 | [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic | set on `Lequait/dsh-context-rescue` |
-| real, working code | 131 tests, ninth host-side gate |
+| real, working code | 140 tests, ninth host-side gate |
 | repo at least **1 day old** | created 2026-10-30T10:28Z, so submit no earlier than 2026-10-31T10:28Z |
 | description states function only | no superlatives; every claim above maps to `lib/` |
 
@@ -147,6 +147,35 @@ request), with no clone in between:
 | [0xsline/awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness) | one line under **Context & Search** in `README.md` and `README.zh-CN.md` — the guide requires both languages in the same PR | [PR #768](https://github.com/0xsline/awesome-deepseek-harness/pull/768), open, mergeable, 2 files / +2 lines |
 | [AdamPlatin123/dsh-plugin-radar](https://github.com/AdamPlatin123/dsh-plugin-radar) | one row in the 🔌 单插件 table of `PLUGINS.md` (this list also auto-discovers repos carrying the `dsh-plugin` topic every day at 02:00) | [PR #986](https://github.com/AdamPlatin123/dsh-plugin-radar/pull/986), open, mergeable, 1 file / +1 line |
 | [awesome-dsh-plugin/awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) | `data/plugins/Lequait__dsh-context-rescue.yml` | waiting on the one-day age rule; scheduled for 2026-10-31 |
+
+
+### 3b. Second wave, through a plan file
+
+Every list wants the same edit in a slightly different wrapper — one line in one README, two lines
+in two READMEs, a row in a category file — so the second wave is driven by a plan file instead of a
+one-off script. `market/listings/<list>.json` says which file, which anchor line, and what to insert;
+`scripts/dev/list-plan.mjs` validates it offline; `scripts/dev/submit-list.mjs` performs it
+(fork → branch → `PUT contents` → pull request) and refuses to guess when an anchor matches more
+than one line or the entry is already there.
+
+```sh
+npm run list-pr -- --plan market/listings/kejixiaoliang.json --dry-run
+npm run list-pr -- --plan market/listings/kejixiaoliang.json
+```
+
+| List | What was submitted | Status |
+| --- | --- | --- |
+| [kejixiaoliang/awesome-dsh-plugins](https://github.com/kejixiaoliang/awesome-dsh-plugins) | one line in `plugins/context-memory.md`, under **上下文审计 / 压缩 / 蒸馏** | [PR #173](https://github.com/kejixiaoliang/awesome-dsh-plugins/pull/173), open |
+| [beancookie/awesome-dsh-plugin](https://github.com/beancookie/awesome-dsh-plugin) | planned: one line in `README.md` and `README.en.md`, under **Sessions & Messages** | not submittable from this account, see below |
+| [bruc3van/awesome-dsh-plugin](https://github.com/bruc3van/awesome-dsh-plugin) | not attempted yet | same constraint |
+
+The blocker is worth recording because it is not obvious from any list's rules: **GitHub allows one
+fork per repository name per account.** `Lequait/awesome-dsh-plugin` is already a fork of
+`awesome-dsh-plugin/awesome-dsh-plugin` (from the first wave), so forking `beancookie/awesome-dsh-plugin`
+lands on that same repository, whose `main` is at a different commit — every write then fails with
+`HTTP 422 Object does not exist`. `submit-list.mjs` now checks `parent.full_name` and says so instead
+of failing with the 422. The lists whose names do not collide remain open: `dshworks/awesome-dsh-plugins`,
+`Alex-Yanggg/awesome-DSH-plugin`, `GordenSun/awesome-dsh-plugins`.
 
 
 ## 4. npm

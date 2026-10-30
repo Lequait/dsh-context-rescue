@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **A listing pull request is a plan file, not a script.** `market/listings/<list>.json` names the
+  file, an anchor line and the line to insert; `scripts/dev/list-plan.mjs` validates it offline
+  (entry shape, one edit per file, no duplicate) and `submit-list.mjs` performs it. An anchor that
+  matches several lines, or an entry already present, is refused rather than guessed — the two ways
+  a listing PR usually goes wrong.
+- **`submit-list.mjs` explains a fork-name collision instead of failing with HTTP 422.** GitHub
+  allows one fork per repository name, so forking a second list called `awesome-dsh-plugin` lands on
+  the existing fork of a different upstream; the script now compares `parent.full_name` and says so.
+- Submitted the plugin to [kejixiaoliang/awesome-dsh-plugins](https://github.com/kejixiaoliang/awesome-dsh-plugins)
+  ([PR #173](https://github.com/kejixiaoliang/awesome-dsh-plugins/pull/173)).
+
 ## 0.2.3 — 2026-10-31
 
 ### Fixed
@@ -19,7 +34,7 @@
 
 ### Verification
 
-131 unit tests (128 pass, 3 skipped, 0 fail), 131 under the host's Node (129 pass), type check
+140 unit tests (137 pass, 3 skipped, 0 fail), 140 under the host's Node (138 pass), type check
 clean, four simulated failure shapes, and the three gate groups above run end to end here.
 
 ## 0.2.2 — 2026-10-31

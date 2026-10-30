@@ -1,0 +1,15 @@
+{
+  "upstream": "kejixiaoliang/awesome-dsh-plugins",
+  "base": "main",
+  "branch": "add-dsh-context-rescue",
+  "title": "新增插件：dsh-context-rescue（上下文超窗后的事后急救，零模型折叠）",
+  "body": "在 `## 上下文审计 / 压缩 / 蒸馏` 下新增一行。\n\n**为什么归这一类**：它不是「事前压缩」，而是**事后急救** —— 宿主已经因为上下文窗口拒掉请求之后的最后一条路。\n\n做的事情：识别宿主分类器漏掉的网关文案（`model context window`、`no upstream can accept it`、`payload … tokens vs the model window`），\n从文案里取出真实窗口（覆盖 adapter 声明的 1,000,000），然后把最旧的一段折成一个检查点并改写 surface —— **零模型调用**，\n再让宿主把失败的那一步重试一次；`/rescue`、`/rescue-status` 手工可用，另有三个模型工具。\n\n四档阶梯：宿主 tool-result pruner → 宿主 compaction 引擎 → 机械折叠（可读摘要，保留文件路径）→ 单条超大消息首尾摘录。\n它**不注册** `compaction` 服务槽，所以能和 billion-context / smart-compact 这类事前压缩器并存。\n\n证据在仓库里：131 个单测；用宿主自己的 `Session` 类回放 216 份真实会话日志（70 份折叠成功、0 失败）；以及真应用启动闸门（含 web 形状）。",
+  "edits": [
+    {
+      "path": "plugins/context-memory.md",
+      "after": "- [dsh-context](https://github.com/bowenliang123/dsh-context)",
+      "insert": "- [dsh-context-rescue](https://github.com/Lequait/dsh-context-rescue) — 上下文超窗后的事后急救：识别网关的窗口报错（含宿主分类器漏掉的文案）、取出真实窗口，零模型把最旧一段折成一个检查点并重试失败那一步，四档阶梯含单条超大消息首尾摘录 · `dsh plugin add dsh-context-rescue`",
+      "message": "新增 dsh-context-rescue（上下文超窗后的事后急救）"
+    }
+  ]
+}

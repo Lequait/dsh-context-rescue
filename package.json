@@ -46,7 +46,8 @@
     "verify": "node scripts/dev/verify.mjs --group core",
     "verify:host": "node scripts/dev/verify.mjs --group host",
     "verify:network": "node scripts/dev/verify.mjs --group network",
-    "verify:all": "node scripts/dev/verify.mjs --group all"
+    "verify:all": "node scripts/dev/verify.mjs --group all",
+    "list-pr": "node scripts/dev/submit-list.mjs"
   },
   "dsh": {
     "bundle": {
