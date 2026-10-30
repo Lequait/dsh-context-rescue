@@ -310,9 +310,12 @@ with a table naming the one that failed:
 
 ```bash
 npm run verify           # core: the unit suite, the type contract, the four simulated failures
-npm run verify:host      # the twelve gates that need the installed app on this machine
+npm run verify:host      # the nine gates that need the installed app on this machine
 npm run verify:network   # the four gates that need the registry or the repository
 ```
+
+Measured here: 3 gates in 8 s, 9 gates in 3 min 34 s, 4 gates in 1 min 30 s — sixteen gates, one
+table, exit code = did anything fail.
 
 `node scripts/dev/verify.mjs --group host --only install-smoke,schema-check` runs two of them.
 

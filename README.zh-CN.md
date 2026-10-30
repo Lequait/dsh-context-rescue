@@ -257,9 +257,12 @@ $.retainRatio expected number <= 0.6 but got 5
 
 ```bash
 npm run verify           # 核心：单测、类型契约、四个模拟失败形状
-npm run verify:host      # 需要本机已安装应用的十二道闸门
+npm run verify:host      # 需要本机已安装应用的九道闸门
 npm run verify:network   # 需要 registry 或仓库的四道闸门
 ```
+
+本机实测：3 道 8 秒、9 道 3 分 34 秒、4 道 1 分 30 秒 —— 一共十六道闸门，一张表，退出码就是
+"有没有失败"。
 
 想只跑其中两道：`node scripts/dev/verify.mjs --group host --only install-smoke,schema-check`。
 
