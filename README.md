@@ -160,6 +160,9 @@ npm run test:host
 # mount into the installed app's own cordis container and drive one rescue
 npm run mount-check
 
+# pack it, install it into a throwaway project, and let the host loader resolve the bundle
+npm run install-smoke
+
 # build + validate a market index entry for this checkout
 npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
@@ -177,6 +180,12 @@ machine: `956 → 169` nodes (991,512 → 298,595 tokens), `2232 → 507` (933,3
 It asserts the tools land on the real `tools` service, the waterfall answers `{kind:'retry'}`,
 the surface is rewritten with a checkpoint, the per-turn budget stops the third attempt, and the
 tools answer through the service.
+
+`install-smoke` is the packaging gate: `npm pack` decides what ships (the `files` list),
+the tarball installs as a dependency in a throwaway project, and the **host's own**
+`bundlePatchPaths`/`loadOverlayPatches` resolve the patch from the installed path. A file
+dropped from `files`, or a patch resolved against the wrong directory, fails there and nowhere
+else — the other gates read the source tree.
 
 The simulation is not decoration: it caught a real bug, where the measurement path inherited
 the digest renderer's 2000-character clamp and priced a 480,000-character message at 1,992

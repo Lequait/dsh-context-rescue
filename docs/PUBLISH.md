@@ -8,6 +8,7 @@ Everything that can be built without credentials is already done and green:
 | Same suite under the app's own Node | `npm run test:host` | 28 pass |
 | Three failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 10 assertions pass |
+| Pack → install → host bundle resolution | `npm run install-smoke` | passed (tarball contents, installed manifest, host loader, imported entry) |
 | Market index entry | `npm run market -- --repo-slug OWNER/dsh-context-rescue` | validated by the host |
 
 What remains needs an authenticated remote.

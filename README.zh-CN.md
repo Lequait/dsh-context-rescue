@@ -141,6 +141,9 @@ npm run test:host
 # 装进本机 app 自己的 cordis 容器里跑一次真实救援
 npm run mount-check
 
+# 真正打包、装进临时项目，再让宿主自己的加载器解析 bundle
+npm run install-smoke
+
 # 为当前 checkout 生成并校验上架条目
 npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
@@ -154,6 +157,11 @@ npm run market -- --repo-slug OWNER/dsh-context-rescue
 真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`
 派发，而不是手搓的假 context。它断言工具确实注册到真实 `tools` 服务、瀑布返回
 `{kind:'retry'}`、投影被改写成检查点、每轮预算拦住第三次、工具能通过服务响应。
+
+`install-smoke` 是打包闸门：`npm pack` 决定最终发出去的形状（受 `files` 白名单约束），
+tarball 被当作依赖装进一次性项目，再由**宿主自己的** `bundlePatchPaths`/`loadOverlayPatches`
+从"安装后的路径"解析出 patch。少一个文件、或 patch 相对目录解析错，只会在这一关暴露 —— 其余闸门
+读的都是源码树。
 
 模拟不是摆设：它抓到了一个真 bug —— 计量路径复用了摘要渲染的 2000 字符截断，把一条
 480,000 字符的消息算成 1,992 tokens，插件因此误判"装得下"。

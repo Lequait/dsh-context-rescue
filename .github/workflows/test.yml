@@ -23,3 +23,6 @@ jobs:
         run: node --test
       - name: Offline simulation
         run: node scripts/simulate.js
+      - name: Package install smoke
+        if: matrix.node == 22
+        run: node scripts/dev/install-smoke.mjs
