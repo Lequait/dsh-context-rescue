@@ -43,6 +43,7 @@ async function hostLoader() {
 async function main() {
   const workdir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-rescue-install-'));
   const failures = [];
+  let patchEntryName = '';
   const check = (label, condition, detail) => {
     if (condition) process.stdout.write(`  ok   ${label}\n`);
     else {
@@ -90,6 +91,8 @@ async function main() {
       check('the host loader resolves the patch from the installed package', patches.length === 1, JSON.stringify(patches));
       const overlays = await appBoot.loadOverlayPatches('dsh', patches[0]);
       const entries = overlays.flatMap((overlay) => overlay.insert ?? []);
+      const inserted = entries.find((candidate) => candidate.id === 'context-rescue');
+      if (inserted !== undefined && typeof inserted.name === 'string') patchEntryName = inserted.name;
       check(
         'the patch inserts the context-rescue entry',
         entries.some((entry) => entry.id === 'context-rescue' && entry.name === 'dsh-context-rescue'),
@@ -118,6 +121,28 @@ async function main() {
 
     const libRescue = await import(`file://${path.join(installed, 'lib/rescue.js').replaceAll('\\', '/')}`);
     check('the installed lib/ is importable on its own', typeof libRescue.rescue === 'function');
+
+    // The host loader imports every entry by its bare specifier with the profile as the parent
+    // URL, so `name` in the patch must equal the package name, and that specifier must resolve
+    // from a project whose only dependency is this package.
+    check(
+      'the patch entry name is the installed package name',
+      patchEntryName === manifest.name,
+      `${patchEntryName} vs ${manifest.name}`,
+    );
+    const bare = execFileSync(
+      process.execPath,
+      ['--input-type=module', '-e',
+        "const m = await import('dsh-context-rescue');"
+        + "console.log(JSON.stringify({ name: m.name, inject: m.inject, apply: typeof m.apply }));"],
+      { cwd: workdir, encoding: 'utf8', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    const resolved = JSON.parse(bare.trim().split('\n').at(-1));
+    check(
+      'a bare import resolves from the installing project',
+      resolved.name === 'context-rescue' && Array.isArray(resolved.inject) && resolved.apply === 'function',
+      JSON.stringify(resolved),
+    );
   } finally {
     if (tarball !== undefined && fs.existsSync(tarball)) fs.rmSync(tarball, { force: true });
     fs.rmSync(workdir, { recursive: true, force: true });

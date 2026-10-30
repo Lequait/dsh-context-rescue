@@ -9,7 +9,7 @@ Everything that can be built without credentials is already done and green:
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 12 files |
 | Three failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 23 assertions pass |
-| Pack → install → host bundle resolution | `npm run install-smoke` | 14 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry) |
+| Pack → install → host bundle resolution | `npm run install-smoke` | 16 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry, bare-specifier resolution) |
 | Publish flow against a throwaway remote | `npm run publish:rehearse` | 18 assertions pass (first push renames `master` to `main`, a repository that already publishes `master` keeps it, host-accepted index entry, pinned commit, install spec) |
 | Sweep of every captured session log | `npm run scan` | 157 logs, 34 oversized, 34 rescued, 0 failed |
 | Market index entry | `npm run market -- --repo-slug OWNER/dsh-context-rescue` | validated by the host |
@@ -79,9 +79,19 @@ Awesome lists accept a one-line entry. The text below states what is different a
 
 ## 4. npm
 
+Either publish locally:
+
 ```bash
 npm login                 # the CLI currently answers ENEEDAUTH
 npm publish --access public
+```
+
+or let the release workflow do it from a tag — it runs the type check, the tests, the simulation,
+the install smoke and the publish rehearsal first, refuses a tag that disagrees with
+`package.json`, and publishes with provenance:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0   # needs the NPM_TOKEN repository secret
 ```
 
 The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/`, `docs/`, both READMEs and
