@@ -1,5 +1,7 @@
 # dsh-context-rescue
 
+![test](https://github.com/Lequait/dsh-context-rescue/actions/workflows/test.yml/badge.svg)
+
 **Emergency rescue for DeepSeek Harness sessions that hit the model context window.**
 
 Your session answers every message with `400` because one request is larger than the

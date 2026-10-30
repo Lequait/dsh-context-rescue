@@ -1,5 +1,7 @@
 # dsh-context-rescue
 
+![test](https://github.com/Lequait/dsh-context-rescue/actions/workflows/test.yml/badge.svg)
+
 **给"上下文爆窗"的 DeepSeek Harness 会话叫救护车。**
 
 会话里每条消息都回 `400`，因为某一次请求超过了模型真正能吃的窗口。`/compact` 也救不回来
