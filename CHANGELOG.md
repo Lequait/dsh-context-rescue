@@ -45,7 +45,8 @@ look like it worked while doing nothing, or do something irreversible for the wr
   proven rather than assumed. The published tarball is unchanged — `scripts/` is not in `files`.
 - Published to npm: `dsh-context-rescue@0.2.2` (`latest`), with the `NPM_TOKEN` repository secret
   set so later tags publish through the release workflow. npm keeps a public `0.0.0-stage` stub
-  version for a newly claimed name; it is a placeholder, not the package.
+  version for a newly claimed name; it cannot be deleted with a granular token, so it was
+  deprecated with a message pointing at 0.2.2.
 - Session-log counts in the older sections are the numbers as measured on the day of that release;
   the machine keeps writing sessions, so they are snapshots, not constants.
 

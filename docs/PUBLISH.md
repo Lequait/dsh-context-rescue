@@ -156,8 +156,10 @@ secret is set, so any future `git tag v*` publishes automatically through the re
 `npm i dsh-context-rescue` resolves; a throwaway profile installs it and registers the bundle.
 
 One artifact to know about: npm's staged publishing reserves a new name with a public
-`0.0.0-stage` stub version. It cannot be removed through a granular token, and it is not the
-package — `latest` points at 0.2.2.
+`0.0.0-stage` stub version. It cannot be removed through a granular token, so it was deprecated
+instead (`npm deprecate dsh-context-rescue@0.0.0-stage "placeholder created by staged publishing;
+install 0.2.2 or later"`), which is what a person sees if they ask for it by name. `latest` points
+at 0.2.2, so a plain `npm i dsh-context-rescue` never resolves to the stub.
 
 Either publish locally, through the guard script:
 
