@@ -16,7 +16,17 @@ What remains needs an authenticated remote.
 ## 1. Create the repository
 
 Either create an empty repository on GitHub (no README, no license — this checkout already has
-both) and then:
+both) and then run the one command that does the remaining mechanical work — push, rename the
+branch to `main` if it is still `master`, and pin the market entry to the commit that actually
+landed:
+
+```bash
+npm run publish:remote -- --repo OWNER/dsh-context-rescue --dry-run   # print the plan only
+npm run publish:remote -- --repo OWNER/dsh-context-rescue
+```
+
+It stops if the work tree is dirty, never stores a credential, and prints the index URL and the
+install spec when it finishes. The equivalent by hand is:
 
 ```bash
 cd dsh-context-rescue
@@ -38,8 +48,9 @@ machine currently has neither, and no `gh` CLI.
 ## 2. Mark it discoverable
 
 - Repository topic: `dsh-plugin` (this is the topic the ecosystem's listings scan for).
-- Regenerate the market entry against the real repository, which also refreshes the pinned
-  commit:
+- `publish:remote` already regenerated and pushed `market/index.json`; regenerate it by hand only
+  when you want a listing to point at a newer build (`market/index.json` is git-ignored in a fresh
+  checkout because it must pin a commit that exists):
 
   ```bash
   npm run market -- --repo-slug OWNER/dsh-context-rescue --out market/index.json

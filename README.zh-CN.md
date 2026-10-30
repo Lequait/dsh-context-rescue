@@ -53,6 +53,9 @@ node scripts/make-market-index.mjs \
   --repo https://github.com/OWNER/dsh-context-rescue \
   --commit "$(git rev-parse HEAD)" \
   --out market/index.json
+
+# 或者一步发布：先推送，再把条目钉到真正推上去的那个提交
+npm run publish:remote -- --repo OWNER/dsh-context-rescue --dry-run
 ```
 
 它会打印解析出的安装 spec（`git+https://…git#<commit>`；加 `--npm` 则是 `name@version`），

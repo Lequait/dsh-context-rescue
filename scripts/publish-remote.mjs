@@ -44,17 +44,24 @@ function git(args, { allowFailure = false } = {}) {
 
 /** Accept a slug, an https URL, or an ssh remote; return `{ https, indexUrl }`. */
 function normalizeRepo(input) {
-  const raw = String(input).replace(/\/+$/u, '');
+  // A personal access token may be passed as https://<token>@github.com/OWNER/NAME: it is used
+  // for the push and masked in every line this script prints.
+  const given = String(input).replace(/\/+$/u, '');
+  const raw = given.replace(/\/\/[^/@]+@/u, '//***@');
   const https = /^https?:\/\//u.test(raw)
     ? raw.replace(/\.git$/u, '')
     : /^[\w.-]+\/[\w.-]+$/u.test(raw)
       ? `https://github.com/${raw}`
       : raw.replace(/^git@([^:]+):/u, 'https://$1/').replace(/\.git$/u, '');
+  const pushUrl = /^https?:\/\//u.test(given)
+    ? given.replace(/\.git$/u, '')
+    : given.replace(/^git@([^:]+):/u, 'https://$1/').replace(/\.git$/u, '');
   const slug = https.replace(/^https:\/\/[^/]+\//u, '');
   const host = https.replace(/^https:\/\/([^/]+)\/.*$/u, '$1');
   const isGithub = host === 'github.com';
   return {
     https,
+    pushUrl,
     slug,
     indexUrl: isGithub
       ? `https://github.com/${slug}/raw/main/market/index.json`
@@ -107,10 +114,10 @@ async function main() {
   const existing = git(['remote', 'get-url', remote], { allowFailure: true });
   const plan = [
     ...(existing === undefined
-      ? [['remote', 'add', remote, repo.https]]
-      : existing === repo.https
+      ? [['remote', 'add', remote, repo.pushUrl]]
+      : existing === repo.pushUrl
         ? []
-        : [['remote', 'set-url', remote, repo.https]]),
+        : [['remote', 'set-url', remote, repo.pushUrl]]),
     ['push', '--set-upstream', remote, branch],
   ];
 

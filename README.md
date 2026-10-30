@@ -62,6 +62,9 @@ node scripts/make-market-index.mjs \
   --repo https://github.com/OWNER/dsh-context-rescue \
   --commit "$(git rev-parse HEAD)" \
   --out market/index.json
+
+# or do the whole publish in one step: push, then pin the entry to the pushed commit
+npm run publish:remote -- --repo OWNER/dsh-context-rescue --dry-run
 ```
 
 It prints the resolved install spec (`git+https://…git#<commit>`, or `name@version` with
