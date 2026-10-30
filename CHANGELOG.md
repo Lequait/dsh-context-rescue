@@ -67,9 +67,9 @@ where a proxy owns compression.
 
 - 44 unit tests, including a replay of a real captured session log and of the exact wording from
   the upstream report.
-- A sweep of every session log on the development machine: 157 logs, 32 oversized, 32 rescued,
+- A sweep of every session log on the development machine: 162 logs, 32 oversized, 32 rescued,
   0 failures.
-- The host's own `Session` class, loaded out of the app bundle, seeds 157 captured logs and folds
+- The host's own `Session` class, loaded out of the app bundle, seeds 162 captured logs and folds
   65 of them in-process (30 of those through the pre-flight path, with no failed request first): every append is validated by the host's `validateSessionEventData`, the
   projection by its `SurfaceManager`, and the derived history never keeps an orphan tool result.
 - The real application boots with the bundle installed: a copy whose `apply()` throws is reported by
