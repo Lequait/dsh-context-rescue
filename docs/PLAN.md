@@ -147,8 +147,11 @@ Two manifest decisions came out of inspecting the installed host (`0.2.1-rc.3`):
 Gate: repository pushed, listing submitted → **blocked on a repository URL and credentials**.
 The machine has no `gh`, no SSH key (`~/.ssh` holds only `known_hosts`), no
 `~/.git-credentials`, no `GITHUB_TOKEN`, and the npm CLI reports `ENEEDAUTH`. Everything that
-can be produced without them exists: two commits, a validated index entry, the installable
-bundle shape.
+can be produced without them exists: the commits, a validated index entry, the installable
+bundle shape — and, since the publish mechanics were the untested part, a rehearsal that runs
+the real `publish-remote` script against a local bare repository and checks the pushed branch,
+the host-accepted entry and the pinned install spec (`npm run publish:rehearse`, 15 assertions).
+What no local gate can supply is the account that owns the target repository.
 
 ## 4. Verification matrix
 
@@ -166,6 +169,7 @@ bundle shape.
 | Host container mount | plugin mounts in the installed app's cordis 4, the tools land on the real `tools` service, and the rescue survives a mounted host compaction engine without taking its slot | verified by `scripts/dev/mount-check.mjs` (22 assertions) |
 | Human commands | the host's own `CommandRuntime` lists `/rescue` and `/rescue-status`, executes them, and logs `command/run` + `command/done` | verified by `scripts/dev/mount-check.mjs` §6 (7 assertions) |
 | Installed package | `npm pack` output installs as a dependency and the host bundle loader resolves `cordis.patch.yml` from the installed path | verified by `scripts/dev/install-smoke.mjs` |
+| Publish flow | cloning this checkout, pushing into a bare remote, and pinning the index entry produce a host-accepted entry that points at the code commit | verified by `scripts/dev/publish-rehearse.mjs` (15 assertions, no account needed) |
 
 ## 5. Real-log evidence
 

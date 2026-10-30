@@ -164,6 +164,9 @@ npm run mount-check
 # 真正打包、装进临时项目，再让宿主自己的加载器解析 bundle
 npm run install-smoke
 
+# 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
+npm run publish:rehearse
+
 # 为当前 checkout 生成并校验上架条目
 npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
@@ -190,6 +193,12 @@ tarball 被当作依赖装进一次性项目，`evaluatePluginCompatibility` 断
 
 模拟不是摆设：它抓到了一个真 bug —— 计量路径复用了摘要渲染的 2000 字符截断，把一条
 480,000 字符的消息算成 1,992 tokens，插件因此误判"装得下"。
+
+`publish:rehearse` 补上源码树测试碰不到的最后一段：`publish-remote` 是唯一需要账号的步骤，
+所以排练会把本 checkout 克隆到临时目录、建一个裸仓库当远端、对它跑**真实的发布脚本**，再断言
+宿主会看到什么 —— 推上去的分支、能被宿主 `parseMarketIndex` 接受的 `market/index.json`、
+条目 pin 住的 commit 确实是"带代码的那个"而不是索引 commit 自己、commit 钉死的
+`git+…#<commit>` 安装 spec，以及写进推送后 `package.json` 的仓库元信息。
 
 ## 局限
 

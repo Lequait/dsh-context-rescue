@@ -4,14 +4,17 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + market rules | `npm test` | 27 pass |
-| Same suite under the app's own Node | `npm run test:host` | 28 pass |
+| Unit + fold + rescue + commands + market rules | `npm test` | 41 tests, 38 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 41 tests, 39 pass, 2 skipped |
 | Three failure scenarios | `npm run simulate` | all pass |
-| Mount in the installed host's cordis 4 | `npm run mount-check` | 10 assertions pass |
-| Pack → install → host bundle resolution | `npm run install-smoke` | passed (tarball contents, installed manifest, host loader, imported entry) |
+| Mount in the installed host's cordis 4 | `npm run mount-check` | 23 assertions pass |
+| Pack → install → host bundle resolution | `npm run install-smoke` | 14 assertions pass (tarball contents, installed manifest, host loader, compatibility, imported entry) |
+| Publish flow against a throwaway remote | `npm run publish:rehearse` | 15 assertions pass (pushed branch, host-accepted index entry, pinned commit, install spec) |
+| Sweep of every captured session log | `npm run scan` | 157 logs, 34 oversized, 34 rescued, 0 failed |
 | Market index entry | `npm run market -- --repo-slug OWNER/dsh-context-rescue` | validated by the host |
 
-What remains needs an authenticated remote.
+What remains needs an authenticated remote: nothing in the list above can create or write to a
+hosted repository on its own.
 
 ## 1. Create the repository
 

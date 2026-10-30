@@ -23,7 +23,7 @@ import { execFileSync } from 'node:child_process';
 import { buildMarketIndexDoc, checkMarketIndexDoc } from '../lib/market-index.js';
 import { dshAsarCandidates } from './host-paths.mjs';
 
-const ROOT = path.resolve(import.meta.dirname, '..');
+const SCRIPT_ROOT = path.resolve(import.meta.dirname, '..');
 
 function argOf(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -31,6 +31,12 @@ function argOf(name, fallback) {
   const value = process.argv[index + 1];
   return value === undefined || value.startsWith('--') ? true : value;
 }
+
+/**
+ * The checkout to publish. `--root` exists so a rehearsal can run the whole flow against a
+ * throwaway clone instead of the real work tree.
+ */
+const ROOT = path.resolve(String(argOf('root', SCRIPT_ROOT)));
 
 /** Mask a token embedded in a URL before printing a command. */
 const redact = (value) => String(value).replace(/\/\/[^/@]+@/u, '//***@');
@@ -45,30 +51,40 @@ function git(args, { allowFailure = false } = {}) {
   }
 }
 
-/** Accept a slug, an https URL, or an ssh remote; return `{ https, indexUrl }`. */
-function normalizeRepo(input) {
-  // A personal access token may be passed as https://<token>@github.com/OWNER/NAME: it is used
-  // for the push and masked in every line this script prints.
+/**
+ * Accept a slug, an https URL, or an ssh remote.
+ *
+ * `https` is the address that goes into the index entry and the install spec, so it is always
+ * derived. `pushUrl` is what git actually pushes to: an ssh remote stays ssh (rewriting it to
+ * https would silently drop the key the user configured), and `--push-url` exists so a rehearsal
+ * can push into a local bare repository.
+ */
+function normalizeRepo(input, options = {}) {
   const given = String(input).replace(/\/+$/u, '');
-  const raw = given.replace(/\/\/[^/@]+@/u, '//***@');
-  const https = /^https?:\/\//u.test(raw)
-    ? raw.replace(/\.git$/u, '')
-    : /^[\w.-]+\/[\w.-]+$/u.test(raw)
-      ? `https://github.com/${raw}`
-      : raw.replace(/^git@([^:]+):/u, 'https://$1/').replace(/\.git$/u, '');
-  const pushUrl = /^https?:\/\//u.test(given)
-    ? given.replace(/\.git$/u, '')
-    : given.replace(/^git@([^:]+):/u, 'https://$1/').replace(/\.git$/u, '');
+  const isSsh = /^[^/@\s]+@[^:\s]+:/u.test(given) || /^ssh:\/\//u.test(given);
+  const masked = given.replace(/\/\/[^/@]+@/u, '//***@');
+  const asHttps = isSsh
+    ? masked.replace(/^ssh:\/\//u, 'https://').replace(/^[^/@]+@([^:/]+):/u, 'https://$1/')
+    : /^https?:\/\//u.test(masked)
+      ? masked
+      : /^[\w.-]+\/[\w.-]+$/u.test(masked)
+        ? `https://github.com/${masked}`
+        : masked;
+  const https = asHttps.replace(/\.git$/u, '').replace(/\/+$/u, '');
   const slug = https.replace(/^https:\/\/[^/]+\//u, '');
   const host = https.replace(/^https:\/\/([^/]+)\/.*$/u, '$1');
-  const isGithub = host === 'github.com';
+  const pushUrl = options.pushUrl !== undefined
+    ? String(options.pushUrl)
+    : isSsh || options.ssh === true
+      ? given
+      : /^https?:\/\//u.test(given)
+        ? given.replace(/\.git$/u, '')
+        : `https://github.com/${given.replace(/\.git$/u, '')}`;
   return {
     https,
     pushUrl,
     slug,
-    indexUrl: isGithub
-      ? `https://github.com/${slug}/raw/main/market/index.json`
-      : `https://raw.githubusercontent.com/${slug}/main/market/index.json`,
+    host,
   };
 }
 
@@ -85,11 +101,16 @@ async function main() {
   const dryRun = argOf('dry-run', false) === true;
   let branch = argOf('branch', git(['rev-parse', '--abbrev-ref', 'HEAD'], { allowFailure: true }) ?? 'main');
   const remote = argOf('remote', 'origin');
+  const pushUrlArg = argOf('push-url', undefined);
+  const useSsh = argOf('ssh', false) === true;
 
   if (typeof repoArg !== 'string') {
     throw new Error('--repo <OWNER/NAME | https URL | git@host:OWNER/NAME.git> is required');
   }
-  const repo = normalizeRepo(repoArg);
+  const repo = normalizeRepo(repoArg, {
+    ...(typeof pushUrlArg === 'string' ? { pushUrl: pushUrlArg } : {}),
+    ssh: useSsh,
+  });
 
   if (git(['rev-parse', '--is-inside-work-tree'], { allowFailure: true }) !== 'true') {
     throw new Error(`${ROOT} is not a git work tree`);
@@ -115,6 +136,9 @@ async function main() {
   }
 
   const existing = git(['remote', 'get-url', remote], { allowFailure: true });
+  // The index URL must address the branch that actually gets pushed, which is not always 'main'
+  // (an existing clone keeps whatever branch it is on).
+  const indexUrl = `${repo.https}/raw/${branch}/market/index.json`;
   const plan = [
     ...(existing === undefined
       ? [['remote', 'add', remote, repo.pushUrl]]
@@ -152,7 +176,7 @@ async function main() {
   if (validator === undefined) {
     process.stdout.write('host validator unavailable (set DSH_APP_ASAR); the local rules still passed\n');
   } else {
-    validator.parseMarketIndex(doc, repo.indexUrl);
+    validator.parseMarketIndex(doc, indexUrl);
     process.stdout.write('index entry accepted by the host parseMarketIndex\n');
   }
 
@@ -180,7 +204,7 @@ async function main() {
     [
       '',
       `pushed      ${repo.https} (${commit.slice(0, 7)})`,
-      `index URL   ${repo.indexUrl}`,
+      `index URL   ${indexUrl}`,
       `install     dsh plugin add ${spec}`,
       '',
       'still manual (needs an account, not a credential this script may hold):',

@@ -189,6 +189,9 @@ npm run mount-check
 # pack it, install it into a throwaway project, and let the host loader resolve the bundle
 npm run install-smoke
 
+# rehearse the whole publish flow against a throwaway clone and a local bare remote
+npm run publish:rehearse
+
 # build + validate a market index entry for this checkout
 npm run market -- --repo-slug OWNER/dsh-context-rescue
 ```
@@ -222,6 +225,14 @@ else — the other gates read the source tree.
 The simulation is not decoration: it caught a real bug, where the measurement path inherited
 the digest renderer's 2000-character clamp and priced a 480,000-character message at 1,992
 tokens — making the plugin believe an oversized session fit.
+
+`publish:rehearse` closes the last gap that a source-tree test cannot reach: `publish-remote`
+is the one step that needs an account, so the rehearsal clones this checkout into a temp
+directory, creates a bare repository as the remote, runs the real script against it, and then
+asserts what a host would see — the pushed branch, a `market/index.json` that the host's own
+`parseMarketIndex` accepts, an entry pinned to the commit that carried the code (not to the
+index commit itself), the commit-pinned `git+…#<commit>` install spec, and repository metadata
+written into the pushed `package.json`.
 
 ## Limits
 
