@@ -77,11 +77,11 @@
       "versions": [
         {
           "version": "0.2.3",
-          "publishTimestamp": 1793406607,
+          "publishTimestamp": 1793407589,
           "source": {
             "type": "git",
             "url": "https://github.com/Lequait/dsh-context-rescue",
-            "commit": "66047df52196743305bda497d3c1b20e1e94aa41"
+            "commit": "4a251bc31c7e9ca1aea4932717b1ce933b656f10"
           },
           "engines": {
             "dsh": ">=0.2.0-rc.1"
