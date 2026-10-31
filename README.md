@@ -303,6 +303,28 @@ the two checks cover different failures, and neither hides the other.
   all. `npm run mount-check` proves the slot still routes to the host engine after the plugin
   mounts.
 
+### Removing it, and undoing a fold
+
+Uninstalling is the rollback, and it needs no cleanup:
+
+```bash
+dsh plugin --profile <profile> remove dsh-context-rescue   # then restart the app
+```
+
+A fold is appended events in the host's own vocabulary — `compaction/start`, one `compaction/prune`
+per folded node, one replacement `user/message` carrying `surfaceOp`, and `compaction/end` — so a
+host that never loaded this plugin reads the folded session exactly as it was left. `npm run
+host-session` asserts that on every log it folds: it re-seeds a fresh host `Session` from the folded
+events, with none of this code involved, and checks that the messages, the tool-call pairing and the
+measured size all match the live session.
+
+The projection cannot be un-folded in place. `@deepseek-ai/dsh-session` defines `compaction/start`,
+`compaction/prune` and `compaction/end`, and no void event — there is nothing to append that puts
+back the history the projection dropped. The events themselves were never deleted, so the text is
+still in `session.v4.jsonl.zstd` and still resolvable by sequence number, but the model will not see
+it again. If you want the numbers before committing to that, ask first: `/rescue-status` previews the
+span it would fold, and `mode: "diagnose"` reports without writing.
+
 ## Verification
 
 Three commands run the gates in the order a person would type them, stream their output, and end

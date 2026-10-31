@@ -4,6 +4,13 @@
 
 ### Changed
 
+- **The rollback story is now written down and asserted, not assumed.** Uninstalling
+  (`dsh plugin --profile <profile> remove dsh-context-rescue`) needs no cleanup, because a fold is
+  only appended host events; and there is no un-fold, because `@deepseek-ai/dsh-session` has
+  `compaction/start`, `compaction/prune` and `compaction/end` but no void event. `npm run
+  host-session` now proves the first half on every log it folds: a fresh host `Session` seeded from
+  the folded events — none of this plugin's code involved — derives the same messages, the same
+  tool-call pairing and the same measured size.
 - **A listing pull request is a plan file, not a script.** `market/listings/<list>.json` names the
   file, an anchor line and the line to insert; `scripts/dev/list-plan.mjs` validates it offline
   (entry shape, one edit per file, no duplicate) and `submit-list.mjs` performs it. An anchor that

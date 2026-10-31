@@ -251,6 +251,25 @@ $.retainRatio expected number <= 0.6 but got 5
   开 `zeroModelOnly` 时根本不会碰这条车道。`npm run mount-check` 会先挂一个宿主压缩引擎，
   再证明挂载插件后该槽仍然路由到它、且急救仍在零模型档完成。
 
+### 卸载，以及"能不能撤销一次折叠"
+
+卸载就是回滚，而且不需要任何清理：
+
+```bash
+dsh plugin --profile <profile> remove dsh-context-rescue   # 然后重启应用
+```
+
+折叠写入的全部是宿主自己的事件词汇 —— `compaction/start`、每个被折节点一条 `compaction/prune`、
+一条带 `surfaceOp` 的替换 `user/message`、以及 `compaction/end` —— 所以一个**从未装过本插件**的宿主
+读到的就是折叠后的样子。`npm run host-session` 对每一份被折叠的日志都断言过这一点：它用折叠后的
+事件新建一个全新的宿主 `Session`（不经过本插件任何代码），并核对消息、工具调用配对与计量都和
+当时活着的会话一致。
+
+但投影**不能就地反折叠**：`@deepseek-ai/dsh-session` 只有 `compaction/start`、`compaction/prune`、
+`compaction/end`，没有作废（void）事件 —— 没有可以追加的东西把投影丢掉的历史放回来。事件本身
+从未被删除，原文仍在 `session.v4.jsonl.zstd` 里、仍能按序号解析，但模型不会再看到它。想在动手前先
+看清代价：`/rescue-status` 会预览将要折叠的区间，`mode: "diagnose"` 只报告不写入。
+
 ## 验证
 
 三条命令按人实际敲的顺序跑完闸门，输出照原样流出来，最后给一张表点名失败的那一个：

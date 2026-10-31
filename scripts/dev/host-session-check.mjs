@@ -231,6 +231,24 @@ async function checkOne(Session, SessionId, logPath, config) {
     assert.equal(report.action, 'pass', `pre-flight rewrote a projection that fits (${preBefore} tokens)`);
   }
 
+  // The rollback claim: a fold is data in the log, not state held by this
+  // plugin. Seed a brand-new host Session from the folded events — none of our
+  // code is involved in reading it — and read it the way a restart would. This
+  // is what remains after `dsh plugin remove`.
+  const reopened = seedHostSession(Session, SessionId, eventsOf(session), 'host-reopen');
+  const reopenedMessages = reopened.deriveMessages();
+  assert.ok(reopenedMessages.length > 0, 'a host that never loaded the plugin cannot read the folded session');
+  assert.equal(orphanToolResults(reopenedMessages), 0, 'the folded session reopens with a tool result without a call');
+  assert.ok(
+    JSON.stringify(reopenedMessages).includes('<context-rescue-checkpoint>'),
+    'the checkpoint is only in the live projection, not in the log',
+  );
+  assert.equal(
+    measure(ctx, reopened).totalTokens,
+    measure(ctx, session).totalTokens,
+    'reopening the folded log measured differently from the live session',
+  );
+
   const last = eventsOf(session).at(-1);
   assert.equal(last.type, 'compaction/end', `host log does not end with compaction/end (got ${last.type})`);
 
