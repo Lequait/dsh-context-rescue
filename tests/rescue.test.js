@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { FakeSession, fakeContext, fakeLlm, fakeMeter, seedConversation } from './fake-session.js';
 import { resolveConfig } from '../lib/config.js';
-import { describeSession, mechanicalFold, preflight, rescue, rescueStateOf } from '../lib/rescue.js';
+import { describeSession, mechanicalFold, preflight, rescue, rescueStateOf, traceReport } from '../lib/rescue.js';
 import { derivedTokensOf, measure } from '../lib/measure.js';
 import { hasOpenCompactionTransaction } from '../lib/plan.js';
 import { apply } from '../index.js';
@@ -40,6 +40,69 @@ test('rescue folds the oldest span and asks for a retry', async () => {
   assert.match(reportText(session), /本轮|轮用户需求|结论/);
   assert.equal(hasOpenCompactionTransaction(session.events), false);
   assert.equal(report.tiers.at(-1).tier, 'mechanical-fold');
+});
+
+test('debug writes one structured line per decision, and nothing when it is off', async () => {
+  // `debug` is documented as "write structured diagnostics to the host logger"
+  // and was declared in the config without a single reader: the option did
+  // nothing. A rescue that declines is exactly when someone needs the tiers.
+  const quiet = sessionWithLongHistory();
+  const quietCtx = fakeContext({ llm: fakeLlm(60000) });
+  const quietConfig = resolveConfig({});
+  const quietReport = await rescue(quietCtx, {
+    agent: { session: quiet },
+    session: quiet,
+    failure: OVERFLOW,
+    provider: 'p',
+    config: quietConfig,
+  });
+  traceReport(quietCtx, quietConfig, 'rescue', quietReport);
+  assert.equal(
+    quietCtx.logs.filter((entry) => String(entry.message).includes('debug rescue:')).length,
+    0,
+    'debug: false must not write the trace',
+  );
+
+  const loud = sessionWithLongHistory();
+  const loudCtx = fakeContext({ llm: fakeLlm(60000) });
+  const loudConfig = resolveConfig({ debug: true });
+  const loudReport = await rescue(loudCtx, {
+    agent: { session: loud },
+    session: loud,
+    failure: OVERFLOW,
+    provider: 'p',
+    config: loudConfig,
+  });
+  traceReport(loudCtx, loudConfig, 'rescue', loudReport);
+
+  const trace = loudCtx.logs.find((entry) => String(entry.message).includes('debug rescue:'));
+  assert.ok(trace !== undefined, 'debug: true must write the trace');
+  const fields = JSON.parse(trace.data);
+  assert.equal(fields.kind, 'rescue');
+  assert.equal(fields.action, 'retry');
+  assert.ok(Array.isArray(fields.tiers) && fields.tiers.length > 0, 'the trace must name the tiers that ran');
+  assert.ok(['prune', 'host-compaction', 'mechanical-fold', 'oversized-message'].includes(fields.tiers[0].tier));
+  assert.equal(typeof fields.before, 'number');
+  assert.ok(fields.after < fields.before, 'the trace must carry both measurements');
+  assert.equal(typeof fields.fold.start, 'number');
+  assert.ok(fields.fold.end > fields.fold.start, 'the trace must say which span was folded');
+  assert.ok(fields.fold.shadowed > 0 && fields.fold.shadowedTokens > 0);
+});
+
+test('the plugin wires the debug trace, so the option is not inert end to end', async () => {
+  const session = sessionWithLongHistory();
+  const ctx = fakeContext({ llm: fakeLlm(60000), tools: { register: () => () => {} } });
+  apply(ctx, { debug: true });
+  const handler = ctx.listeners.get('agent/request-error');
+
+  const result = await handler({ agent: { session }, failure: OVERFLOW, provider: 'p', turn: 3, step: 1 }, async () => undefined);
+
+  assert.deepEqual(result, { kind: 'retry' });
+  const trace = ctx.logs.find((entry) => String(entry.message).includes('debug rescue:'));
+  assert.ok(trace !== undefined, 'apply() must pass the debug flag through to the trace');
+  const fields = JSON.parse(trace.data);
+  assert.equal(fields.action, 'retry');
+  assert.ok(fields.tiers.length > 0);
 });
 
 test('a host session that only exposes snapshotEvents() is still folded', async () => {

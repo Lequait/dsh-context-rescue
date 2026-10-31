@@ -15,7 +15,7 @@
 
 import { registerCommands } from './lib/command.js';
 import { resolveConfig, validateConfig } from './lib/config.js';
-import { log, preflight, rememberReport, rescue, rescueStateOf } from './lib/rescue.js';
+import { log, preflight, rememberReport, rescue, rescueStateOf, traceReport } from './lib/rescue.js';
 import { Config } from './lib/schema.js';
 import { registerTools } from './lib/tools.js';
 import { errorText } from './lib/util.js';
@@ -82,6 +82,7 @@ export function apply(ctx, rawConfig) {
         if (report.attempted && config.verbose) {
           log(ctx, 'info', `pre-flight ${report.action}: ${report.reason}; tokens ${report.before?.totalTokens} -> ${report.after?.totalTokens}`);
         }
+        traceReport(ctx, config, 'pre-flight', report);
       } catch (error) {
         log(ctx, 'warn', `pre-flight failed, letting the step continue: ${errorText(error)}`);
       }
@@ -131,6 +132,7 @@ export function apply(ctx, rawConfig) {
     }
 
     rememberReport(agent, report);
+    traceReport(ctx, config, 'rescue', report);
 
     if (report.action === 'retry') {
       log(ctx, 'info', `rescued (${report.reason}); tokens ${report.before?.totalTokens} -> ${report.after?.totalTokens}; retrying step ${payload?.step}`);

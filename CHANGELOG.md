@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed
+
+- **`debug` was declared in the options and never read.** The key existed in the defaults and in
+  the schema with the description "write structured diagnostics to the host logger", and no code
+  path looked at it, so turning it on changed nothing. It now writes one line per decision —
+  detected code and window, both measurements, every tier with the reason it declined (`skipped`
+  or `error`), and the folded span — which is the only way to see *why* a session that is over the
+  window was not rescued. `tests/rescue.test.js` covers both the off and on cases, and asserts the
+  wiring through `apply()`, not just the helper.
+
 ### Changed
 
 - **The rollback story is now written down and asserted, not assumed.** Uninstalling

@@ -215,6 +215,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 | `preflight` | `true` | 投影已超窗时在 `agent/pre-step` 就地折叠 |
 | `repairTransactions` | `true` | 关掉崩溃留下的半截压缩事务；悬空的 start 会让之后每一次折叠都被拒绝 |
 | `verbose` | `true` | 把急救决策写进会话日志 |
+| `debug` | `false` | 每个决策打一行结构化日志——检测到的错误码与窗口、折叠前后的度量、每一档以及它为什么放弃、被折叠的区间——这样“没被救的会话”也能自己说明原因 |
 
 ### 配置写错会被告知，而不是被吞掉
 

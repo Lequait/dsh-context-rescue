@@ -259,6 +259,7 @@ All keys are optional; pass them through the plugin's config block.
 | `preflight` | `true` | fold on `agent/pre-step` when the projection is already over the window |
 | `repairTransactions` | `true` | close a compaction bracket a crash left open; a dangling one blocks every later fold |
 | `verbose` | `true` | log rescue decisions to the session |
+| `debug` | `false` | log one structured line per decision — the detected code and window, both measurements, every tier with the reason it declined, and the folded span — so a session that is *not* being rescued says why |
 
 ### Configuration mistakes are reported, not swallowed
 
