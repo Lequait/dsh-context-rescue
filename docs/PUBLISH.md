@@ -136,6 +136,15 @@ git commit -m "Add Lequait/dsh-context-rescue"
 git push -u origin add-dsh-context-rescue
 ```
 
+The same submission through the script, which is what actually runs it: `npm run awesome -- --prepare`
+does every step except open the pull request — it syncs the fork to upstream
+(`POST /repos/{fork}/merge-upstream`), branches from the fork's own `main` after asserting it
+equals upstream's (a ref can only point at a commit the fork has, which is why branching off
+upstream's sha answers `422 Object does not exist`), writes the entry, and refuses unless the
+compare shows exactly one added file and zero deletions. `--prepare` tolerates one gate problem and
+only that one: `too-young`, because a branch alone lists nothing. Then the real call is
+`npm run awesome`, which repeats the checks and opens the pull request.
+
 What that list's own CI will check, reproduced locally before submitting (2026-10-31): the entry
 file placed exactly at `data/plugins/<owner>__<repo>.yml`, `node scripts/generate-readme.mjs`
 regenerating both READMEs to 7925 entries with `--check` clean afterwards, the four rule suites

@@ -31,6 +31,11 @@ const ENTRY_PATH = entryPathFor(REPO);
 const API = 'https://api.github.com';
 
 const dryRun = process.argv.includes('--dry-run');
+// --prepare does everything except open the pull request: fork, sync, branch,
+// write the entry, and prove the diff is a single addition. The branch by
+// itself lists nothing, so the age rule — which is about submitting — does not
+// apply to preparing it.
+const prepareOnly = process.argv.includes('--prepare');
 
 function token() {
 	const filled = execFileSync('git', ['credential', 'fill'], {
@@ -89,6 +94,8 @@ async function main() {
 	if (!repo.ok) throw new Error(`cannot read ${REPO}: HTTP ${repo.status}`);
 	const gate = eligibility({ createdAt: repo.body.created_at, topics: repo.body.topics });
 	const entryIssues = entryProblems(entry, REPO);
+	// --prepare only builds the branch; the age rule governs the submission.
+	const blocking = prepareOnly ? gate.problems.filter((problem) => problem.code !== 'too-young') : gate.problems;
 
 	console.log(`repository   ${REPO}`);
 	console.log(`created      ${repo.body.created_at} (${Number.isNaN(gate.ageHours) ? '?' : gate.ageHours.toFixed(1)} h ago)`);
@@ -96,13 +103,17 @@ async function main() {
 	console.log(`entry        ${ENTRY_PATH} (${entry.split(String.fromCharCode(10)).length} lines from docs/awesome-entry.yml)`);
 
 	const problems = [
-		...gate.problems.map((problem) => problem.message),
+		...blocking.map((problem) => problem.message),
 		...entryIssues.map((issue) => `the entry file would not pass the list's check: ${issue}`),
 	];
 	if (problems.length > 0) {
 		for (const problem of problems) console.error(`refuse: ${problem}`);
 		process.exitCode = 2;
 		return;
+	}
+	if (prepareOnly) {
+		const age = gate.problems.find((problem) => problem.code === 'too-young');
+		if (age !== undefined) console.log(`age rule     ${age.message} — preparing the branch only`);
 	}
 
 	const existing = await api('GET', `/repos/${UPSTREAM}/pulls?state=open&head=Lequait:${BRANCH}`);
@@ -125,7 +136,21 @@ async function main() {
 	const forkRepo = `Lequait/${UPSTREAM.split('/')[1]}`;
 	await waitFor(`/repos/${forkRepo}`);
 
-	const baseSha = (await api('GET', `/repos/${UPSTREAM}/git/ref/heads/${BASE}`)).body.object.sha;
+	// A fork that is behind upstream fails the list's stale-fork guard: the guard
+	// counts entry files deleted between the base sha and the head, and a stale
+	// branch shows every entry added since as a deletion. Sync first, then branch
+	// from the fork's own main — a ref can only point at a commit the fork has,
+	// which is why branching straight off upstream's sha answers HTTP 422
+	// "Object does not exist".
+	const synced = await api('POST', `/repos/${forkRepo}/merge-upstream`, { branch: BASE });
+	console.log(`sync fork    ${synced.ok ? 'up to date' : `HTTP ${synced.status} ${JSON.stringify(synced.body).slice(0, 120)}`}`);
+	const upstreamSha = (await api('GET', `/repos/${UPSTREAM}/git/ref/heads/${BASE}`)).body.object.sha;
+	const baseSha = (await api('GET', `/repos/${forkRepo}/git/ref/heads/${BASE}`)).body.object.sha;
+	if (baseSha !== upstreamSha) {
+		throw new Error(
+			`the fork's ${BASE} is ${baseSha.slice(0, 8)} but upstream is ${upstreamSha.slice(0, 8)}; sync it at https://github.com/${forkRepo} (or resolve the conflict that merge-upstream reported) before opening a pull request — a stale branch makes the list's stale-fork guard fail`,
+		);
+	}
 	const branchRef = await api('GET', `/repos/${forkRepo}/git/ref/heads/${BRANCH}`);
 	if (branchRef.ok) {
 		console.log(`branch ${BRANCH} already exists on the fork; reusing it`);
@@ -142,6 +167,26 @@ async function main() {
 		...(current.ok ? { sha: current.body.sha } : {}),
 	});
 	if (!put.ok) throw new Error(`cannot write the entry: HTTP ${put.status} ${JSON.stringify(put.body)}`);
+
+	// Prove the diff before opening anything: the list wants exactly one added
+	// entry file and no removals, and its guard fails a PR that deletes entries.
+	const compared = await api('GET', `/repos/${UPSTREAM}/compare/${BASE}...Lequait:${BRANCH}`);
+	if (!compared.ok) throw new Error(`cannot read the comparison: HTTP ${compared.status} ${JSON.stringify(compared.body)}`);
+	const changed = compared.body.files ?? [];
+	const added = changed.reduce((total, file) => total + (file.additions ?? 0), 0);
+	const removed = changed.reduce((total, file) => total + (file.deletions ?? 0), 0);
+	if (changed.length !== 1 || changed[0].filename !== ENTRY_PATH || removed !== 0) {
+		throw new Error(
+			`this branch would touch ${changed.length} file(s) [${changed.map((file) => file.filename).join(', ') || 'none'}] with ${removed} deletion(s); the list expects ${ENTRY_PATH} added and nothing removed`,
+		);
+	}
+	console.log(`diff         +${added}/-${removed} in ${changed[0].filename}`);
+
+	if (prepareOnly) {
+		console.log(`prepared: ${forkRepo} branch ${BRANCH} holds exactly one added entry file`);
+		console.log(`re-run without --prepare once the age rule opens, to open the pull request`);
+		return;
+	}
 
 	const pull = await api('POST', `/repos/${UPSTREAM}/pulls`, {
 		title: 'Add dsh-context-rescue',
