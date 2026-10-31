@@ -1,6 +1,6 @@
 {
   "name": "dsh-context-rescue",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Emergency rescue for DeepSeek Harness sessions that hit the model context window: detect the overflow, fold the oldest history into a durable digest, retry the same step.",
   "type": "module",
   "main": "index.js",

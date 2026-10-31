@@ -208,7 +208,7 @@ paths is one command away.
 
 ## 4. npm
 
-**Done: `dsh-context-rescue@0.2.2` went to npm by hand on 2026-10-31, and `0.2.3` went by tag** — `git push origin v0.2.3` ran `release.yml`, which published it through the `NPM_TOKEN` secret and left `latest` at `0.2.3`; `npm run e2e-install -- --npm` then installed that exact version into a throwaway profile. Publishing no longer needs a human with a terminal. The `NPM_TOKEN` repository
+**Done: `dsh-context-rescue@0.2.2` went to npm by hand on 2026-10-31, and `0.2.3` and `0.2.4` went by tag** — `git push origin v0.2.3` ran `release.yml`, which published it through the `NPM_TOKEN` secret and left `latest` at that version; `npm run e2e-install -- --npm` then installed that exact version into a throwaway profile. Publishing no longer needs a human with a terminal. The `NPM_TOKEN` repository
 secret is set, so any future `git tag v*` publishes automatically through the release workflow.
 `npm i dsh-context-rescue` resolves; a throwaway profile installs it and registers the bundle.
 
@@ -232,7 +232,7 @@ the install smoke and the publish rehearsal first, refuses a tag that disagrees 
 `package.json`, and publishes with provenance:
 
 ```bash
-git tag v0.2.3 && git push origin v0.2.3   # NPM_TOKEN is already set; the workflow publishes
+git tag v0.2.4 && git push origin v0.2.4   # NPM_TOKEN is already set; the workflow publishes
 ```
 
 The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/icon.svg`, `docs/`, both

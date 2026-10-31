@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.4 — 2026-10-31
 
 ### Fixed
 
@@ -31,6 +31,13 @@
   the existing fork of a different upstream; the script now compares `parent.full_name` and says so.
 - Submitted the plugin to [kejixiaoliang/awesome-dsh-plugins](https://github.com/kejixiaoliang/awesome-dsh-plugins)
   ([PR #173](https://github.com/kejixiaoliang/awesome-dsh-plugins/pull/173)).
+
+### Verification
+
+142 unit tests (139 pass, 3 skipped, 0 fail), 142 under the host's Node (140 pass), type check
+clean, the core and host gate groups run end to end here (9/9 in 224 s, the sweep at 222 logs:
+70 folded, 32 of them from the pre-flight path, 152 unseedable, 0 failures), and the six CI cells
+green on the commit this version was cut from.
 
 ## 0.2.3 — 2026-10-31
 
