@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **The network gates failed when the network was down, instead of saying so.** `market-install`
+  and `e2e-install -- --git` reach `raw.githubusercontent.com` and `github.com`; when those
+  connections die (timeouts, `ECONNRESET`, a blocked route) the gate crashed with an undici stack
+  trace and a red row, which says nothing about this plugin. They now retry the fetch three times
+  with a widening pause, and when the host still cannot be reached they print `SKIP` with the line
+  that failed and exit 0 — while a host that answers and hands back a wrong artifact still fails,
+  because the classification is keyed to connection-level output only. `npm run verify:network`
+  shows those rows as `skip`, and its totals count them separately instead of calling them passes.
+  The gate scripts also stop dereferencing a manifest that is absent when the install itself never
+  happened.
+
 ## 0.2.4 — 2026-10-31
 
 ### Fixed

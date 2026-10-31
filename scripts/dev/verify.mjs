@@ -79,16 +79,22 @@ if (chosen.length === 0) {
     const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
     if (output.trim() !== '') process.stdout.write(output.endsWith('\n') ? output : `${output}\n`);
     const ok = run.status === 0;
-    rows.push({ script: step.script, note: step.note, ok, seconds: ((Date.now() - at) / 1000).toFixed(1) });
+    // A gate that could not reach the network says so; show it as skipped
+    // rather than passing it off as a pass.
+    const skipped = ok && /^ {0,4}SKIP /m.test(output);
+    rows.push({ script: step.script, note: step.note, ok, skipped, seconds: ((Date.now() - at) / 1000).toFixed(1) });
     if (!ok) process.stdout.write(`\n--- ${step.script} FAILED (exit ${String(run.status)})\n`);
   }
 
   const failed = rows.filter((row) => !row.ok);
+  const skips = rows.filter((row) => row.skipped === true);
   process.stdout.write('\n=== summary\n');
   for (const row of rows) {
-    process.stdout.write(`  ${row.ok ? 'ok  ' : 'FAIL'} ${row.script.padEnd(22)} ${String(row.seconds).padStart(6)}s  ${row.note}\n`);
+    const mark = row.skipped === true ? 'skip' : row.ok ? 'ok  ' : 'FAIL';
+    process.stdout.write(`  ${mark} ${row.script.padEnd(22)} ${String(row.seconds).padStart(6)}s  ${row.note}\n`);
   }
-  process.stdout.write(`\n${rows.length - failed.length}/${rows.length} gates passed in ${((Date.now() - started) / 1000).toFixed(1)}s\n`);
+  const ran = rows.length - skips.length;
+  process.stdout.write(`\n${ran - failed.length}/${ran} gates passed in ${((Date.now() - started) / 1000).toFixed(1)}s${skips.length === 0 ? '' : `, ${skips.length} skipped (no network): ${skips.map((row) => row.script).join(', ')}`}\n`);
   if (failed.length > 0) {
     process.stdout.write(`failed: ${failed.map((row) => row.script).join(', ')}\n`);
     process.exitCode = 1;

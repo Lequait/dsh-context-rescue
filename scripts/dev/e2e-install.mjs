@@ -62,6 +62,22 @@ const check = (label, condition, detail) => {
 };
 
 let tarball;
+
+/**
+ * Distinguish "the host could not be reached" from "the host answered and the
+ * install was wrong". Only the second one is a defect in this plugin, so only
+ * the second one may fail the gate; a blocked network gets said out loud and
+ * skipped. The markers are the literal lines git and pnpm print when a
+ * connection dies, and the whole tail is echoed with the skip so it can be
+ * audited rather than trusted.
+ */
+const NETWORK_MARKERS = /(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|getaddrinfo|Could not resolve host|Connection timed out|Failed to connect|unable to access '|early EOF|RPC failed|TLS handshake|Operation timed out|proxy connect|Proxy Error|socket hang up)/u;
+
+const networkFailure = (output) => {
+  const lines = String(output).split(/\r?\n/u).filter((line) => NETWORK_MARKERS.test(line));
+  return lines.length === 0 ? undefined : lines.slice(-3).join(' | ');
+};
+let skipped;
 try {
   let spec = tarball;
   let mode = 'tarball';
@@ -93,6 +109,15 @@ try {
     timeout: 900_000,
   });
   const output = `${installed.stdout ?? ''}${installed.stderr ?? ''}`;
+  if (installed.status !== 0) {
+    const unreachable = networkFailure(output);
+    if (unreachable !== undefined) {
+      const error = new Error(`the install could not reach the host: ${unreachable}`);
+      error.network = true;
+      error.output = output.slice(-1500);
+      throw error;
+    }
+  }
   check('the CLI exited cleanly', installed.status === 0, output.slice(-500));
   if (mode !== 'tarball') check(`the profile recorded the ${mode} spec`, output.includes('dsh-context-rescue'), output.slice(-400));
 
@@ -115,7 +140,7 @@ try {
 
   process.stdout.write('3. read it back through the host loader\n');
   const boot = await import(pathToFileURL(join(ASAR, 'node_modules/@deepseek-ai/dsh-app-boot/lib/index.js')).href);
-  const patches = boot.bundlePatchPaths(packageDir, installedManifest.dsh.bundle);
+  const patches = boot.bundlePatchPaths(packageDir, installedManifest.dsh?.bundle);
   check('the loader resolved the installed patch path', patches.length === 1 && existsSync(patches[0]), JSON.stringify(patches));
   const overlays = boot.loadOverlayPatches('dsh', patches[0]);
   const inserted = overlays.flatMap((overlay) => overlay.insert ?? []).find((entry) => entry.id === 'context-rescue');
@@ -123,6 +148,14 @@ try {
 
   const mod = await import(pathToFileURL(join(packageDir, 'index.js')).href);
   check('the installed entry exports the plugin', mod.name === 'context-rescue' && Array.isArray(mod.inject) && typeof mod.apply === 'function');
+} catch (error) {
+  if (error?.network === true) {
+    skipped = error.message;
+    process.stdout.write(`   SKIP ${error.message}\n`);
+    if (typeof error.output === 'string') process.stdout.write(`${error.output}\n`);
+  } else {
+    check('the gate ran to the end', false, error?.stack ?? String(error));
+  }
 } finally {
   rmSync(profileDir, { recursive: true, force: true });
   process.stdout.write(`4. removed the throwaway profile (${existsSync(profileDir) ? 'still there!' : 'gone'})\n`);
@@ -130,5 +163,13 @@ try {
   if (tarball !== undefined) rmSync(tarball, { force: true });
 }
 
-process.stdout.write(failures.length === 0 ? '\ne2e install passed\n' : `\n${failures.length} failure(s)\n`);
-process.exitCode = failures.length === 0 ? 0 : 1;
+if (failures.length > 0) {
+  process.stdout.write(`\n${failures.length} failure(s)\n`);
+  process.exitCode = 1;
+} else if (skipped !== undefined) {
+  process.stdout.write('\ne2e install skipped — the host could not be reached, so nothing about the spec was checked\n');
+  process.exitCode = 0;
+} else {
+  process.stdout.write('\ne2e install passed\n');
+  process.exitCode = 0;
+}

@@ -30,6 +30,17 @@ The log-derived counts (`216 logs`, `34 rescued`, `70 folds`, `146 skipped`) and
 timings below are a snapshot of this development machine: they move as sessions are captured, and
 `scan`, `host-session` and `rescue-bench` recompute them.
 
+Four rows in that table need the internet: `e2e-install -- --git`, `e2e-install -- --npm`,
+`market-install`, and `publish:rehearse` (that last one only talks to a local bare repository, but
+it does clone the real remote first). When a host they need cannot be reached at all, they print
+`SKIP` with the line that failed and exit 0, and `npm run verify:network` reports them as `skip`
+rather than `ok` — the totals say so out loud (`2/3 gates passed …, 1 skipped (no network)`).
+The skip is keyed to connection-level output only (`Failed to connect`, `ECONNRESET`,
+`getaddrinfo`, `Could not resolve host`, …), so a host that answers and still gives the wrong
+artifact fails as before. Where the direct route is blocked, run the group through a proxy:
+`NODE_USE_ENV_PROXY=1 HTTPS_PROXY=http://HOST:PORT npm run verify:network` — that is how the four
+network rows were filled in on 2026-10-31 (`4/4`).
+
 ## 1. Create the repository
 
 <https://github.com/Lequait/dsh-context-rescue> exists and carries `master`. The run was:
