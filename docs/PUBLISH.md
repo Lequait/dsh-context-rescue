@@ -136,6 +136,17 @@ git commit -m "Add Lequait/dsh-context-rescue"
 git push -u origin add-dsh-context-rescue
 ```
 
+What that list's own CI will check, reproduced locally before submitting (2026-10-31): the entry
+file placed exactly at `data/plugins/<owner>__<repo>.yml`, `node scripts/generate-readme.mjs`
+regenerating both READMEs to 7925 entries with `--check` clean afterwards, the four rule suites
+(`added-dates`, `capabilities`, `adopt-discussions`, `entries-path`) passing 3 / 9 / 9 / 3, and
+`SKIP_PUBLISH_CHECKS=1 node scripts/build-site.mjs` building the site with the entry included —
+the added-date is derived from git history, so the build only accepts a committed entry, which is
+what a pull request produces. `npx awesome-lint` could not be reproduced here: on Windows it reads
+the README's own path as the repository URL (`Invalid GitHub repo URL: G:\Temp\awesome-check\README.md`)
+and the same failure occurs on an untouched clone, so lint remains a CI-side check rather than a
+local one.
+
 ### 3a. Listings submitted on 2026-10-30
 
 `awesome-dsh-plugin` has a one-day age rule, so that one is scheduled for the next day. Two other
