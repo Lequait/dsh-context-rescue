@@ -245,7 +245,7 @@ async function main() {
       `install     dsh plugin add ${spec}`,
       '',
       'what is left, and why this script stops here:',
-      '  - the age-gated listing PR (the repository must be a day old): npm run awesome -- --dry-run says when',
+      '  - the listing pull requests are already open (awesome-dsh-plugin#10903, awesome-deepseek-harness#768, dsh-plugin-radar#986, awesome-dsh-plugins#173) and wait on maintainers; npm run awesome re-runs that gate',
       `  - npm: ${JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version} is the version in this tree; publishing it goes out by tagging vX.Y.Z, which runs release.yml with NPM_TOKEN`,
       '  - listing pull requests: npm run list-pr -- --plan market/listings/<list>.json (a fork per repository name only — see docs/PUBLISH.md 3b)',
       '  - the dsh-plugin topic is already set on this repository; other listings scan for it',
