@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- **The landing page is Chinese now.** `README.md` is the Chinese document, and the English one
+  moved to `README.en.md` with a language switch at the top of both. The package description, the
+  repository description, and the next release notes are Chinese-first too, so the page a visitor
+  lands on reads the way it was written rather than as a translation of the other one. Nothing
+  about the plugin changed: the code, the schema, the commands, and every gate are untouched.
+  `package.json` `files` follows the rename, so the published tarball still carries both languages.
+
 ### Fixed
 
 - **The network gates failed when the network was down, instead of saying so.** `market-install`

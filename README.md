@@ -2,495 +2,415 @@
 
 ![test](https://github.com/Lequait/dsh-context-rescue/actions/workflows/test.yml/badge.svg)
 
-**Emergency rescue for DeepSeek Harness sessions that hit the model context window.**
+**中文** · [English](README.en.md)
 
-Your session answers every message with `400` because one request is larger than the
-provider will accept. `/compact` does not help: it resends the same oversized surface, and
-when a proxy owns compression it is refused outright. This plugin is the ambulance — it
-detects the overflow, folds the oldest history into a durable digest, and retries the exact
-same step, so the session continues instead of dying.
+**给"上下文爆窗"的 DeepSeek Harness 会话叫救护车。**
+
+会话里每条消息都回 `400`，因为某一次请求超过了模型真正能吃的窗口。`/compact` 也救不回来
+—— 它沿着同一条超限的投影重发；如果压缩被代理层接管，还会被直接拒绝。这个插件是急救车：
+识别爆窗、把最老的历史折叠成结构化摘要、把同一步重发一次，会话就活了。
 
 ```
 400 the request exceeds the model's context window
   └─ context-rescue: overflow detected (gw-prose, score 0.95)
-     ├─ T1 prune tool output      → not available
-     ├─ T2 host compaction        → refused by proxy, lane blocked for this process
-     ├─ T3 mechanical fold        → 956 nodes → 169 nodes, 991,512 → 298,595 tokens
-     └─ T4 oversized message      → only when history is one huge message: keep its head and tail
-  └─ retry step → 200 OK
+     ├─ T1 裁剪工具输出     → 宿主未提供
+     ├─ T2 宿主压缩引擎     → 代理拒绝，本进程内该车道永久关闭
+     ├─ T3 机械折叠         → 956 节点 → 169 节点，991,512 → 298,595 tokens
+     └─ T4 超大单条消息     → 仅当历史只有一条巨消息时：保留它的开头与结尾
+  └─ 重试同一步 → 200 OK
 ```
 
-## Why this exists
+## 为什么需要它
 
-The failure chain is well documented upstream (DSH discussion #10138) and it is a chain, not
-a bug in one place:
+这条失效链在上游有完整记录（DSH 讨论 #10138），它是**三段叠加**，不是单点 bug：
 
-1. the gateway rejects with prose the host classifier does not recognise, so the failure is
-   never tagged `CONTEXT_WINDOW_EXCEEDED`;
-2. the host's context-overflow branch therefore never runs;
-3. nothing shrinks the surface, so the retry is byte-identical and fails again — forever.
+1. 网关用自然语言拒绝（`payload core text alone is ~N bytes … no upstream can accept it`），
+   宿主的分类器认不出来，于是这次失败**没有**被打上 `CONTEXT_WINDOW_EXCEEDED`；
+2. 错误码不对，宿主自带的上下文溢出分支就**不会执行**；
+3. 没有任何东西缩小投影，重发出去的请求字节级相同，于是再失败一次 —— 无限循环。
 
-Every existing plugin in this space is **preventive** (roll the context window over, prune tool
-output, compress through a proxy). None of them runs *after* the session is already wedged.
-This one does nothing at all until a request fails, which is why it can be installed alongside
-any of them.
+现有插件都是**事前预防**（滚动换窗、裁剪工具输出、代理侧压缩）。没有一个在会话已经卡死之后
+动手。本插件平时什么都不做，只在请求失败时介入，因此可以和上面任何一款共存。
 
-## Install
+## 安装
 
 ```bash
-# from this repository
+# 直接从本仓库装
 dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-rescue.git#master
 
-# from a checkout
+# 本地目录
 dsh plugin --profile <profile> add /path/to/dsh-context-rescue
 
-# from npm (0.2.2 is published)
+# 从 npm 安装（0.2.4 已发布）
 dsh plugin --profile <profile> add dsh-context-rescue
 ```
 
-The branch form follows `master`; the market entry instead pins a commit
-(`git+…#<commit>`), so a listing points at a build that cannot move under it.
+分支形式跟随 `master`；市场条目则是钉死提交（`git+…#<commit>`），列表指向的构建不会在脚下挪动。
 
-The plugin declares `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }` and inserts itself
-as `context-rescue`. It imports **no** `@deepseek-ai/*` package at runtime — every host
-structure it touches (`surfaceOp`, `compaction/*`, the pairing rule, the model-info resolver)
-is constructed locally against the documented wire shape. A host upgrade cannot break the
-plugin's imports, and it declares no host peer dependency to go missing.
+包内声明了 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`，以 `context-rescue`
+为 id 插入。**运行时它不 import 任何 `@deepseek-ai/*` 包**：`surfaceOp`、`compaction/*` 事务、
+配对规则、模型窗口解析全部按宿主的线上结构在本地构造。宿主升级不会打断它的 import，
+它也不声明任何宿主 peer 依赖（也就没有"peer 缺失装不上"这回事）。装完重启一次（新 bundle 需要宿主重载）。
 
-Restart the session (or the app) after installing; a host reload is required for a new bundle.
+## 上架条目
 
-## Marketplace listing
-
-`market/` holds the icon and the generator for a **format-1 plugin market index entry**. The
-entry is validated by the host's own `parseMarketIndex`, i.e. by the same code the Discover page
-uses to read indexes:
+`market/` 放图标和生成脚本，产出的是**格式 1 的插件市场索引条目**。校验用的是宿主自己的
+`parseMarketIndex` —— 也就是 Discover 页读索引时跑的那套代码：
 
 ```bash
-# validate an entry whose Git source is this repository at a pinned commit
+# 校验一条以本仓库某个 commit 作为 Git 源的条目
 node scripts/make-market-index.mjs \
   --repo https://github.com/OWNER/dsh-context-rescue \
   --commit "$(git rev-parse HEAD)" \
   --out market/index.json
 
-# or do the whole publish in one step: push, then pin the entry to the pushed commit
+# 或者一步发布：先推送，再把条目钉到真正推上去的那个提交
 npm run publish:remote -- --repo OWNER/dsh-context-rescue --dry-run
 ```
 
-It prints the resolved install spec (`git+https://…git#<commit>`, or `name@version` with
-`--npm`) and exits non-zero on any violated rule, with the JSON path of the offending value.
-`DSH_APP_ASAR` overrides where the validator is loaded from.
+它会打印解析出的安装 spec（`git+https://…git#<commit>`；加 `--npm` 则是 `name@version`），
+任何一条规则不通过就带 JSON 路径非零退出。校验器位置可用 `DSH_APP_ASAR` 覆盖。
 
-DSH only reads indexes a user configured: the market bundle is optional and ships with
-`indexes: []`, so a listing is one discovery away.
+DSH 只读用户自己配置的索引：市场 bundle 是可选的、默认 `indexes: []`，所以"能被发现"只差一步。
 
-This repository is already published, so a user has two routes:
+本仓库已经发布，用户有两条路：
 
 ```bash
-# 1. straight from git — works without any marketplace, pin the commit you reviewed
+# 1. 直接从 git 装 —— 不需要任何市场，钉住你复核过的 commit
 dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-rescue.git#<commit>
 ```
 
 ```text
-# 2. through the Discover page
-add the index source    https://github.com/Lequait/dsh-context-rescue/raw/master/market/index.json
-                        (Discover → index sources / "Add index source"; the official market bundle
-                        @deepseek-ai/dsh-plugin-market is optional and not present in every profile)
-pick the entry          dsh-context-rescue — it installs the commit the entry pins, not a branch
+# 2. 通过 Discover 页
+添加索引源   https://github.com/Lequait/dsh-context-rescue/raw/master/market/index.json
+            （Discover → 索引源 / "Add index source"；官方市场 bundle
+             @deepseek-ai/dsh-plugin-market 是可选的，不是每个 profile 都有）
+选中条目     dsh-context-rescue —— 它装的是条目里钉住的 commit，不是分支
 ```
 
-The repository also carries the `dsh-plugin` topic so topic-scanning lists pick it up, and the
-entry has been submitted to two curated lists (`docs/PUBLISH.md` records the PRs).
+仓库同时带了 `dsh-plugin` topic，按 topic 扫描的列表能自动发现它；条目也已投给两个策展列表
+（PR 记录在 `docs/PUBLISH.md`）。
 
-## Two ways to count the same thing
+## 两个不同的计数
 
-`measure()` prices the surface nodes; the provider is asked to accept the
-*request*, which is what `session.deriveMessages()` builds. Those are different
-numbers, and a session can look fine by the first and still be refused by the
-second. `/rescue-status` reports both, and the host gate asserts the second one:
-after every fold, the derived request must be smaller than before **and** under
-the window.
+`measure()` 数的是 surface 节点；真正要上游接受的却是**请求**，也就是
+`session.deriveMessages()` 生成的那批消息。这两个数并不相同：按前者看还装得下的会话，
+按后者看可能照样被拒。`/rescue-status` 两个都报，宿主闸门断言的也是后者——每次折叠之后，
+派生出的请求必须比折叠前小，而且必须在窗口以内。
 
-## When nothing can work
+## 救不回来的时候
 
-Some sessions cannot be rescued: the system prompt alone can already be over the
-window. The plugin tries every tier once, then remembers the session as
-defeated and stops measuring it -- otherwise every single request in that
-session would pay a full measurement and fail the same way. The step still
-runs, the request is still attempted, and the failure is passed through
-unchanged. `/rescue` (or `context_rescue` with `action: "rescue"`) always tries
-once more, and any rescue that does work reopens the normal path.
+有些会话救不回来：光是系统提示词就已经超过窗口。插件会把每一档都试一次，然后把这条会话记为「已无解」，不再每个请求都重新测量一遍——否则那条会话的每个请求都要付一次完整测量、然后再以同样方式失败。这一步照常继续，请求照常发出，失败原样交回宿主。`/rescue`（或 `context_rescue` 的 `action: "rescue"`）总会再试一次；任何一次真正生效的救援都会让正常路径重新打开。
 
-That verdict belongs to the window and the shape of the history it was reached under, not to the
-session forever: switching to a model with more room, or a projection that has grown since, drops
-it and the session is measured again, in both the failure path and the step check. Otherwise
-changing models -- the obvious thing to try when a session is stuck -- would keep the plugin
-looking away.
+这个「无解」结论属于当时那个窗口和当时那份历史形状，而不是永久属于这个会话：换到窗口更大的模型，或者投影在这之后又长大了，结论都会被丢弃，失败路径与每步预检都会重新测量一次。否则「换个模型试试」——卡住时最自然的动作——反而会让插件继续装看不见。
 
-## What the checkpoint keeps
+## 检查点里留下什么
 
-The digest is written without a model, so it keeps *facts*, not prose: errors and failures,
-the task list, the operations that were run (one line each, repeats collapsed), the user's
-requests, the most recent conclusions -- and the file paths the work touched. Paths are read
-out of tool arguments whether the host stored them as a tree or, as it does in practice, as a
-single JSON text blob; a fold that drops every path leaves the request small and the model lost.
+摘要不调用模型，所以它留的是**事实**而不是文笔：错误与失败、任务清单、跑过的操作（一行一次，
+重复的合并计数）、用户的请求、最近的结论，以及这次工作**触及的文件与路径**。路径无论是存放在
+参数树里还是存放在宿主实际写入的那一条 JSON 文本里，都会被读出来——一次把路径全丢掉的折叠，
+会让请求变小、让模型失去线索。
 
-## Before the request is sent
+## 请求发出之前
 
-Waiting for the 400 costs a round trip, and some sessions never recover from one (discussion
-#10138). So the same rescue also runs on `agent/pre-step`, one step earlier:
+等到 400 才救，代价是一次白走的重试；而有些会话一次都救不回来（issue #10138）。所以同一套急救
+也挂在 `agent/pre-step` 上，早一步发生：
 
-1. measure the projection the loop is about to send;
-2. if it is already **larger than the model window**, the request cannot be accepted at all, so
-   fold it there — T1 prune, then the zero-model checkpoint;
-3. if it merely sits in the pressure band (`fitRatio × window` up to the window), do nothing:
-   that is ordinary compaction policy and it belongs to the host.
+1. 先量循环即将发出的投影；
+2. 如果它已经**超过模型窗口**，这个请求根本不可能被接受 —— 就地折叠：先 T1 裁剪，再走零模型检查点；
+3. 如果只是落在压力带（`fitRatio × 窗口` 到窗口之间），一律不动：那是普通压缩策略，归宿主管。
 
-The window comes from the model registry for the provider in the session header, then from the
-session, then from `windowFallback`, and it is cached per target so a turn does not resolve it
-once per step. T2 is deliberately skipped here: the host engine has its own pre-step hook, and
-borrowing it would compact twice for one overshoot.
+窗口依次来自模型注册表（用会话头里的 provider）、会话自身、`windowFallback`，并按目标缓存，
+一个 turn 不会每步都去解析一次。这里**故意不走 T2**：宿主引擎有自己的 pre-step 钩子，借它会为
+同一次超窗压缩两遍。
 
-Measuring a large projection is the expensive part of a rescue — on this machine the full ladder
-runs at a 1.1 s median, and almost all of it is pricing nodes. A pre-step hook runs on every step,
-so it measures **once per turn** and afterwards only counts what was appended since: the second
-check of a turn costs nothing measurable and still notices a large paste (any new message over
-4,000 characters forces a real re-measurement, and so does a surface whose node count no longer
-matches the cached one — someone else folded). `node scripts/dev/rescue-bench.mjs` prints the
-distribution for the largest logs on this machine.
+量一份大投影才是急救里最贵的一步：本机实测整条阶梯中位数 1.1 秒，几乎都花在给节点计价上。pre-step
+每一步都会调用，所以它**一个 turn 只量一次**，之后只数「这之后新追加了什么」——同一 turn 的第二次检查
+耗时可忽略，但仍然会发现大段粘贴（任何新消息超过 4,000 字符就强制重新测量；投影节点数与缓存不符也
+强制重测，那说明别人折叠过）。`node scripts/dev/rescue-bench.mjs` 会打出本机最大几份日志的耗时分布。
 
-## What it does when a request fails
-The listener runs on the `agent/request-error` waterfall, which fires for every failed request
-regardless of the code the host assigned.
+## 请求失败之后它做什么
 
-1. **Classify.** Score the failure against strong probes (gateway prose, `model's context
-   window`, `no upstream can accept`, budget-vs-window arithmetic) and structured codes. Pull
-   `requestTokens` / `windowTokens` out of the message when present — the window the failure
-   *observed* beats the window the adapter *declared*.
-2. **Measure.** Price the surface with the host token meter; fall back to a local estimate.
-3. **Plan.** Compute balance-safe cuts with the host's own pairing rule (a tool call is an
-   `assistant/message` content block, a result is a `tool/result`; mirror events do not move
-   the balance). Keep the pinned head and the recent tail. Refuse to plan across an unclosed
-   compaction transaction.
-4. **Rescue, in tiers.**
-   - **T1** — prune tool output through whatever pruner the host exposes (cheapest, no model).
-   - **T2** — ask the host's compaction engine to do what it would have done: `compactIfNeeded(agent, 'context-overflow', signal)`.
-     A borrowed engine only counts as a rescue when the projection actually shrank; an engine
-     that resolves without doing anything falls through to T3. If a proxy refuses the lane
-     (`dsh_compaction_refused`), remember that and never ask again in this process.
-   - **T3** — write a checkpoint: `compaction/start` → `compaction/prune` → `user/message` with
-     `surfaceOp: replace` → `compaction/end`, with a structured digest of the folded span.
-   - **T4** — when the overshoot *is* one message (a file pasted into the newest turn), there is
-     no span to fold around it: replace that message with its own head and tail, and state the
-     original length and what was dropped. Only text messages whose removal keeps tool pairing
-     balanced qualify; an orphan `tool/result` or an assistant message carrying calls is never
-     touched on its own. When the oversize *is* a tool result, that result and the call answering
-     it are replaced together — dropping either half alone would orphan the other.
+挂在 `agent/request-error` 瀑布上 —— 这条钩子对**任何**失败都会触发，跟宿主给的是什么错误码
+无关，因此正好补住分类器的漏。
 
-   The system prompt is never excerpted: an excerpt of the instructions would keep the request
-   legal while quietly removing what the turn was told to do, so if that is the only thing left
-   over the window the ladder reports a failure instead of pretending. Several pasted blocks at
-   once are handled in one pass — the fold takes the older span, and T4 cuts down what survives
-   in the tail. Within what is left over, older history is excerpted first: the message typed
-   into the current turn is what the turn is about, so it is only cut when nothing older is
-   large enough to bring the request under the window.
+1. **判定**：强证据（网关原文、`model's context window`、`no upstream can accept`、
+   预算与窗口的算术关系）+ 结构化错误码；顺带抽出 `requestTokens` / `windowTokens`。
+   失败里**观测到**的窗口优先于适配器**声明**的窗口。
+2. **计量**：走宿主 token meter，没有就本地估算。
+3. **规划**：用宿主自己的配对规则算安全切点（工具调用是 `assistant/message` 里的
+   `tool-call` block，结果是 `tool/result`，镜像事件不动余额）。保留钉住的头部和最近尾部；
+   遇到未闭合的 compaction 事务直接拒绝出计划。
+4. **四档阶梯**：
+   - **T1** 用宿主暴露的 pruner 裁剪工具输出（最便宜，零模型）；
+   - **T2** 请宿主的压缩引擎做它本该做的事：`compactIfNeeded(agent, 'context-overflow', signal)`；
+     借来的引擎只有把投影**真的变小**才算救活，什么都没做的 no-op 会继续落到 T3；
+     若被代理拒绝（`dsh_compaction_refused`），记下来，本进程内不再问第二次；
+   - **T3** 写检查点：`compaction/start` → `compaction/prune` → `user/message`（`surfaceOp: replace`）
+     → `compaction/end`，正文是折叠区间的结构化摘要。
+   - **T4** 当整段超窗的其实**只有一条消息**（比如刚贴进来的一整个文件）时，没有区间可折：
+     把那条消息本身换成「开头 + 结尾」的摘录，并在检查点里写明原文长度与被丢弃的中间部分。
+     只对删掉它仍能保持工具调用配对完整的文本消息生效；孤儿 `tool/result` 之类一律不碰。
+     当超窗的其实是一次工具输出时，那次调用和它的结果会一起被换成摘录——单独删掉任一半，
+     另一半就成了孤儿。
 
-5. **Retry once.** Return `{ kind: 'retry' }` so the loop resends the same step against the
-   now-smaller surface. If every tier fails, or the per-turn budget is spent, delegate with
-   `next()` and let the host report the real error.
+   系统提示词永远不会被摘录：把指令换成首尾摘录，等于让请求合法地丢掉这一轮该做什么，所以当窗口里
+   超出的只剩它时，阶梯报告失败而不是假装成功。一次贴进多段内容也能一趟处理完——折叠先吃掉旧区间，
+   留在尾部的那条由 T4 截断。而在剩下的内容里，旧历史会先被摘录：这一轮刚打进去的那条消息就是这一轮
+   要做的事，只有当更早的地方没有足够大的东西能把请求压回窗口时，才会动它。
 
-The digest is structured, not a paraphrase: failures and errors, files and paths touched, task
-list, key actions, user intent, recent conclusions. Long sessions lose detail, but they keep
-their shape and their pointers.
+5. **只重试一次**：返回 `{ kind: 'retry' }`，让循环用变小后的投影重发同一步。全档失败或
+   超出每轮预算就 `next()` 交出控制权，绝不让真实错误被吞掉。
 
-## Tools
+摘要是结构化的，不是复述：错误与失败、涉及的文件与路径、任务清单、关键操作、用户意图、
+最近结论。长会话会丢细节，但保留骨架和线索。
 
-| Tool | Purpose |
+## 工具
+
+| 工具 | 用途 |
 |---|---|
-| `context_rescue` | `action: "status"` reports occupancy, capabilities and the last rescue; `action: "rescue"` runs the ladder now and folds without waiting for a failure |
-| `context_rescue_estimate` | classify a pasted error text (optional `text`) and show the sizes it extracts, plus this session's occupancy |
-| `context_rescue_fold` | fold the oldest history span right now — no parameters, the same mechanical fold `/rescue` runs — and report the token delta |
+| `context_rescue` | `action: "status"` 报告占用、能力与上次急救；`action: "rescue"` 立刻走一遍阶梯、不等失败 |
+| `context_rescue_estimate` | 分类一段贴进来的报错文本（可选参数 `text`），给出从中提取的尺寸，外加本会话的占用情况 |
+| `context_rescue_fold` | 立刻折叠最旧的一段历史（没有参数，与 `/rescue` 走同一个机械折叠），并报告 token 变化 |
 
-Tools never throw; they return a report object with `ok`, `reason` and counters.
+工具不抛异常，统一返回带 `ok`、`reason` 和计数的报告对象。
 
-## Commands
+## 斜杠命令
 
-Two slash commands are registered whenever the host exposes a command registry (the same slot
-`/compact` uses). They are optional — a profile without the registry still gets the automatic
-path and the tools.
+只要宿主提供了命令注册表（`/compact` 用的那个槽），插件就会注册两个命令。它们是可选的：没有该注册表的 profile 仍然有自动急救与工具。
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---|---|
-| `/rescue` | fold the oldest span now and report the token delta (`/rescue status` reports only) |
-| `/rescue-status` | occupancy, resolved window, whether a fold is possible, what a fold would cost right now, and the last attempt |
+| `/rescue` | 立刻折叠最旧的一段并报告 token 变化（`/rescue status` 只报告不改写） |
+| `/rescue-status` | 报告占用、解析出的窗口、是否可折叠、此刻折叠的代价，以及上一次急救结果 |
 
-The status line distinguishes the two things a rescue can do: it names the span a fold would
-take, and when nothing can be folded it says which oversized message would be excerpted instead
-of claiming there is nothing to do.
+状态行会区分急救能做的两种事：能折时说出要折的区间，折不了时说出会被摘录的是哪一条超大消息，
+而不是笼统地说「没什么可折」。
 
-The registry may mount after this plugin; registration is retried when the service appears.
-Results are one line of text, and a rescue folds through exactly the same code path as the
-automatic one. Commands never throw.
+命令注册表可能比插件后挂载，插件会在服务出现时补注册。命令结果是一行文本，走的仍是与自动急救完全相同的代码路径，且永不抛异常。
 
-## Configuration
+## 配置
 
-All keys are optional; pass them through the plugin's config block.
+全部可选。
 
-| Key | Default | Meaning |
+| 键 | 默认 | 含义 |
 |---|---|---|
-| `enabled` | `true` | mount the plugin at all; `false` leaves the harness untouched |
-| `mode` | `"auto"` | `auto` runs the full ladder (prune → host engine → mechanical fold → excerpt); `fold` runs the same ladder without the host compaction engine, so it never asks a model to summarise; `diagnose` detects and reports but rewrites nothing |
-| `zeroModelOnly` | `false` | never call the model/compactor; go straight to the mechanical fold |
-| `trimOversizedMessages` | `true` | when one message alone overflows, replace it with its own head and tail |
-| `excerptChars` | `3000` | characters kept from each end when that happens |
-| `allowModelCompaction` | `true` | allow T2 (the host engine) |
-| `retainRatio` | `0.25` | share of the current surface kept as the recent tail |
-| `retainMinTokens` / `retainMaxTokens` | `4000` / `40000` | clamps for the retained tail |
-| `targetRatio` | `0.75` | fold until the surface is at most this share of the window |
-| `fitRatio` | `0.9` | treat the surface as fitting below this share of the window |
-| `minFoldTokens` | `4000` | below this, folding is not worth a transaction |
-| `maxAttemptsPerTurn` | `2` | rescue budget per assistant turn |
-| `maxDigestChars` | `12000` | hard cap on the checkpoint body |
-| `pinFirstUserMessage` | `true` | keep the first user message outside every fold, unless that message alone is over the budget |
-| `windowFallback` | `196608` | window used when neither the failure nor the model info provides one |
-| `extraPatterns` | `[]` | regex sources added to overflow detection |
-| `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | proxy refusals that permanently block T2 |
-| `registerTools` | `true` | register the three tools |
-| `registerCommands` | `true` | register `/rescue` and `/rescue-status` when the host has a command registry |
-| `preflight` | `true` | fold on `agent/pre-step` when the projection is already over the window |
-| `repairTransactions` | `true` | close a compaction bracket a crash left open; a dangling one blocks every later fold |
-| `verbose` | `true` | log rescue decisions to the session |
-| `debug` | `false` | log one structured line per decision — the detected code and window, both measurements, every tier with the reason it declined, and the folded span — so a session that is *not* being rescued says why |
+| `enabled` | `true` | 是否挂载插件；`false` 时完全不碰宿主 |
+| `mode` | `"auto"` | `auto` 走完整阶梯（剪枝 → 宿主引擎 → 机械折叠 → 摘录）；`fold` 走同一条阶梯但不问宿主压缩引擎，因此永远不会让模型来总结；`diagnose` 只检测和报告，不改写任何东西 |
+| `zeroModelOnly` | `false` | 永不调用模型/压缩引擎，直接走机械折叠 |
+| `trimOversizedMessages` | `true` | 单条消息自己就装不下时，用它的开头+结尾替换它 |
+| `excerptChars` | `3000` | 替换时首尾各保留多少字符 |
+| `allowModelCompaction` | `true` | 是否允许 T2 |
+| `retainRatio` | `0.25` | 作为最近尾部保留的占比 |
+| `retainMinTokens` / `retainMaxTokens` | `4000` / `40000` | 尾部长度的上下限 |
+| `targetRatio` | `0.75` | 折叠到窗口的这个比例以内 |
+| `fitRatio` | `0.9` | 低于该比例即认为装得下 |
+| `minFoldTokens` | `4000` | 小于这个量不值得开一次事务 |
+| `maxAttemptsPerTurn` | `2` | 每个 assistant 轮次的急救预算 |
+| `maxDigestChars` | `12000` | 检查点正文硬上限 |
+| `pinFirstUserMessage` | `true` | 首条用户消息不进折叠区间——除非它自己就超过了预算 |
+| `windowFallback` | `196608` | 失败与模型信息都给不出窗口时使用 |
+| `extraPatterns` | `[]` | 追加的溢出识别正则 |
+| `laneRefusalPatterns` | `["dsh_compaction_refused", "bili owns compression"]` | 命中即永久关闭 T2 |
+| `registerTools` | `true` | 是否注册上述三个工具 |
+| `registerCommands` | `true` | 宿主有命令注册表时是否注册 `/rescue` 与 `/rescue-status` |
+| `preflight` | `true` | 投影已超窗时在 `agent/pre-step` 就地折叠 |
+| `repairTransactions` | `true` | 关掉崩溃留下的半截压缩事务；悬空的 start 会让之后每一次折叠都被拒绝 |
+| `verbose` | `true` | 把急救决策写进会话日志 |
+| `debug` | `false` | 每个决策打一行结构化日志——检测到的错误码与窗口、折叠前后的度量、每一档以及它为什么放弃、被折叠的区间——这样“没被救的会话”也能自己说明原因 |
 
-### Configuration mistakes are reported, not swallowed
+### 配置写错会被告知，而不是被吞掉
 
-Options are validated when the plugin mounts. An unknown key (`retainRation`), a `mode` the
-plugin does not know, a ratio outside its usable range, or a `targetRatio` that sits at or above
-`fitRatio` is logged as a `config:` warning instead of quietly changing the behaviour you expect.
-A rescue plugin that silently ignores a typo is indistinguishable from one that is not installed.
+插件挂载时会校验选项：拼错的键（如 `retainRation`）、不认识的 `mode`、超出可用区间的比例、
+以及不低于 `fitRatio` 的 `targetRatio`，都会以 `config:` 开头的 warn 日志报出，而不是悄悄按别的
+值运行。对急救插件来说，"静默忽略拼写错误"和"根本没装"是同一件事。
 
-### The options are a real schema, not a wish list
+### 选项是一份真 schema，不是愿望清单
 
-`lib/schema.js` declares every option below as a Cordis/Schemastery schema, which the host uses in
-two ways: it validates your patch **before** the plugin starts, and it documents the options in
-`dsh --dump-config-schema`. A value the schema refuses (`retainRatio: 5`, `mode: aggressive`,
-`preflight: "yes"`) stops the boot with the field name and the bound, instead of starting with a
-silently clamped number:
+`lib/schema.js` 把下面每个选项声明成 Cordis/Schemastery schema，宿主会因此做两件事：在插件启动
+**之前**校验你的 patch，并在 `dsh --dump-config-schema` 里把这些选项写进文档。schema 拒绝的值
+（`retainRatio: 5`、`mode: aggressive`、`preflight: "yes"`）会让启动直接停下并指出字段与边界，
+而不是带着一个被悄悄夹紧的数字继续跑：
 
 ```
 $.retainRatio expected number <= 0.6 but got 5
 ```
 
-Unknown keys are deliberately *left alone* by the schema so the warning above can name your typo —
-the two checks cover different failures, and neither hides the other.
+未知键则被 schema 故意放过，好让上面那条 warn 能点出你拼错的名字——两种检查各自负责不同的错误，
+谁也不替谁兜底。
 
-## Safety
+## 安全边界
 
-- **Never corrupts the surface.** Fold boundaries are balance-safe by the host's own rule; a
-  cut that would split a tool call from its result is not used. A fold that throws closes its
-  transaction bracket with `compaction/end{error}` instead of leaving the session mid-write.
-- **Never spends context for nothing.** If the measured projection already fits the window the
-  failure reported, it retries unchanged instead of folding — the gateway can count more than
-  the projection does, and a rewrite there would only cost history.
-- **Never loops.** At most `maxAttemptsPerTurn` rescues per turn, then it steps aside.
-- **Never deletes history.** A fold only appends: every original event stays in the session
-  log, `eventAt(seq)` still resolves it, and only the projection stops containing it. Nothing a
-  rescue hides is gone from the record, so a wrong fold costs you a projection, not the
-  conversation — the log can still be read, replayed, or folded differently next time.
-  `tests/fold.test.js` asserts it.
-- **Never lies.** If nothing foldable exists (a single mega-message, or a pinned head larger
-  than the window) it reports that and delegates, so you see the real error.
-- **Never competes.** It does not register the `compaction` service, so a preventive compactor
-  keeps its slot and gets first refusal at T2; with `zeroModelOnly` it never calls the lane at
-  all. `npm run mount-check` proves the slot still routes to the host engine after the plugin
-  mounts.
+- **绝不损坏投影**：切点按宿主自己的平衡规则计算，会把工具调用和它的结果切开的区间一律不用；
+  写入中途抛错会补一条 `compaction/end{error}` 闭合事务括号。
+- **绝不为空忙花上下文**：如果按插件自己的计量，投影本来就在报错所说的窗口之内，就直接原样重试，
+  不做折叠 —— 网关可能比投影算得更多，那时改写只会白白烧掉历史。
+- **绝不循环**：每轮最多 `maxAttemptsPerTurn` 次，然后让位。
+- **绝不删历史**：折叠只做追加 —— 原始事件全部留在会话日志里，`eventAt(seq)` 仍能取到，
+  只是投影不再包含它们。急救藏起来的东西并没有从记录里消失；折错了损失的是一次投影，
+  不是这段对话，日志照样能读、能回放、下次也能换成另一种折法。`tests/fold.test.js` 断言了这一点。
+- **绝不假装成功**：没有可折叠区间（单条巨消息，或钉住的头部本身超窗）时明确报告并交出控制权。
+- **绝不抢位**：不注册 `compaction` 服务槽，预防型压缩器照常持有它，并且在 T2 有优先权；
+  开 `zeroModelOnly` 时根本不会碰这条车道。`npm run mount-check` 会先挂一个宿主压缩引擎，
+  再证明挂载插件后该槽仍然路由到它、且急救仍在零模型档完成。
 
-### Removing it, and undoing a fold
+### 卸载，以及"能不能撤销一次折叠"
 
-Uninstalling is the rollback, and it needs no cleanup:
+卸载就是回滚，而且不需要任何清理：
 
 ```bash
-dsh plugin --profile <profile> remove dsh-context-rescue   # then restart the app
+dsh plugin --profile <profile> remove dsh-context-rescue   # 然后重启应用
 ```
 
-A fold is appended events in the host's own vocabulary — `compaction/start`, one `compaction/prune`
-per folded node, one replacement `user/message` carrying `surfaceOp`, and `compaction/end` — so a
-host that never loaded this plugin reads the folded session exactly as it was left. `npm run
-host-session` asserts that on every log it folds: it re-seeds a fresh host `Session` from the folded
-events, with none of this code involved, and checks that the messages, the tool-call pairing and the
-measured size all match the live session.
+折叠写入的全部是宿主自己的事件词汇 —— `compaction/start`、每个被折节点一条 `compaction/prune`、
+一条带 `surfaceOp` 的替换 `user/message`、以及 `compaction/end` —— 所以一个**从未装过本插件**的宿主
+读到的就是折叠后的样子。`npm run host-session` 对每一份被折叠的日志都断言过这一点：它用折叠后的
+事件新建一个全新的宿主 `Session`（不经过本插件任何代码），并核对消息、工具调用配对与计量都和
+当时活着的会话一致。
 
-The projection cannot be un-folded in place. `@deepseek-ai/dsh-session` defines `compaction/start`,
-`compaction/prune` and `compaction/end`, and no void event — there is nothing to append that puts
-back the history the projection dropped. The events themselves were never deleted, so the text is
-still in `session.v4.jsonl.zstd` and still resolvable by sequence number, but the model will not see
-it again. If you want the numbers before committing to that, ask first: `/rescue-status` previews the
-span it would fold, and `mode: "diagnose"` reports without writing.
+但投影**不能就地反折叠**：`@deepseek-ai/dsh-session` 只有 `compaction/start`、`compaction/prune`、
+`compaction/end`，没有作废（void）事件 —— 没有可以追加的东西把投影丢掉的历史放回来。事件本身
+从未被删除，原文仍在 `session.v4.jsonl.zstd` 里、仍能按序号解析，但模型不会再看到它。想在动手前先
+看清代价：`/rescue-status` 会预览将要折叠的区间，`mode: "diagnose"` 只报告不写入。
 
-## Verification
+## 验证
 
-Three commands run the gates in the order a person would type them, stream their output, and end
-with a table naming the one that failed:
+三条命令按人实际敲的顺序跑完闸门，输出照原样流出来，最后给一张表点名失败的那一个：
 
 ```bash
-npm run verify           # core: the unit suite, the type contract, the four simulated failures
-npm run verify:host      # the nine gates that need the installed app on this machine
-npm run verify:network   # the four gates that need the registry or the repository
+npm run verify           # 核心：单测、类型契约、四个模拟失败形状
+npm run verify:host      # 需要本机已安装应用的九道闸门
+npm run verify:network   # 需要 registry 或仓库的四道闸门
 ```
 
-Measured here: 3 gates in 8 s, 9 gates in 3 min 34 s, 4 gates in 1 min 30 s — sixteen gates, one
-table, exit code = did anything fail.
+本机实测：3 道 8 秒、9 道 3 分 34 秒、4 道 1 分 30 秒 —— 一共十六道闸门，一张表，退出码就是
+"有没有失败"。
 
-`node scripts/dev/verify.mjs --group host --only install-smoke,schema-check` runs two of them.
+想只跑其中两道：`node scripts/dev/verify.mjs --group host --only install-smoke,schema-check`。
 
-The individual commands, if you want one at a time:
+要一条条手跑，命令如下：
 
 ```bash
-node --test                          # unit + replay
-npm run typecheck                    # JSDoc type contract over index.js and lib/
-node scripts/simulate.js             # four failure scenarios against the real code
-npm run scan                         # fold every oversized session log found on this machine
-npm run host-session                 # the same folds through the host's own Session class
-npm run coexist                      # rescue beside the host's real compaction engine
-npm run e2e-install                  # install through the app's own CLI into a throwaway profile
-npm run e2e-install -- --git         # same, but from the published git spec instead of a tarball
-npm run e2e-install -- --npm         # same, but from the registry spec — the listing people use
-npm run market-install               # fetch the published market index, let the host parse it, install what it says
-npm run boot-check                   # boot the real app: does apply() run, and does it survive a profile that owns the compression lane?
+node --test                          # 单测 + 回放
+npm run typecheck                    # 用 JSDoc 给 index.js 与 lib/ 做类型检查
+node scripts/simulate.js             # 四个失效场景跑真实插件代码
 DSH_SESSION_LOG=<session.v4.jsonl.zstd> node --test tests/replay-real-log.test.js
 
-# the same suite under the app's own Node, where the host validator is reachable
+# 同一套测试改用 app 自己的 Node 跑，那里才读得到 app.asar 里的宿主校验器
 npm run test:host
 
-# mount into the installed app's own cordis container and drive one rescue
+# 装进本机 app 自己的 cordis 容器里跑一次真实救援
 npm run mount-check
 
-# pack it, install it into a throwaway project, and let the host loader resolve the bundle
+# 真正打包、装进临时项目，再让宿主自己的加载器解析 bundle
 npm run install-smoke
 
-# rehearse the whole publish flow against a throwaway clone and a local bare remote
-# (also pins the branch rule: an empty remote gets main, an existing master keeps master)
+# 用 app 里真实的 Session 类回放本机日志并折叠
+npm run host-session
+
+# 和宿主的真实压缩引擎（compaction-basic）共存跑一次救援
+npm run coexist
+
+# 用宿主自己的 CLI 装进一个一次性 profile，再删掉
+npm run e2e-install
+# 同上，但装的是已发布的 git spec（真实网络路径）
+npm run e2e-install -- --git
+npm run e2e-install -- --npm         # 同上，但用 registry 上的 npm spec 安装（用户最常走的那条）
+# 真的启动应用：apply() 被执行吗，且能否与占用压缩车道的插件同一个 profile 共存
+npm run boot-check
+# 拉线上市场索引，交给宿主解析，再装它给出的 spec（Discover 页走的同一条路）
+npm run market-install
+
+# 用临时克隆 + 本地裸仓库把整条发布流程排练一遍
+# （同时钉住分支规则：空远端首次推送改成 main，已有 master 的仓库保持 master）
 npm run publish:rehearse
 
-# build + validate a market index entry for this checkout
+# 为当前 checkout 生成并校验上架条目
 npm run market -- --repo-slug OWNER/dsh-context-rescue
 
-# the optional npm release: checks the tree, the tarball list and the taken version,
-# then stops at the one step that needs an account
+# 可选的 npm 发布：先查工作树、包内容清单、版本是否被占，最后停在唯一需要账号的那一步
 npm run publish:npm -- --dry-run
 ```
 
-The suite covers detection, pairing-safe planning, fold transactions, ladder behaviour, lane
-refusal memory, per-turn budgets, a no-op borrowed engine, an already-fitting projection, a second
-rejection that forces the ladder, an internal throw that is handed back to the host, and
-measurement accuracy. `tests/replay-real-log.test.js`
-additionally folds a log captured from a real session and re-checks the host invariants on the
-result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
-sweeps every log on this machine and folds each oversized one with zero model calls: 34 of 216
-captured sessions exceed a 196,608-token window and all 34 are rescued, with no failure
-(`docs/PLAN.md` §5). The counts here are a snapshot of this machine: they grow as
-sessions are captured, and `scan` and `host-session` recompute them, so the numbers below are
-that same snapshot rather than fixed constants.
+覆盖判定、配对安全规划、折叠事务、阶梯行为、车道拒绝记忆、每轮预算、no-op 借用引擎、
+本来就装得下的投影、同一轮内第二次被拒时强制走阶梯、内部异常交还宿主，以及计量精度。
+`tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
+`DSH_SESSION_LOG` 时自动跳过。`node scripts/dev/scan-sessions.mjs` 会把本机所有会话日志扫一遍，
+每个超标会话都在**零模型调用**下救回来：216 个已捕获会话里有 34 个超过 196,608 窗口，34 个全部
+救回，0 失败（见 `docs/PLAN.md` §5）。这里的数字是本机的一份快照：会话还在不断产生，
+`scan` 与 `host-session` 会重新计算它们，所以下面引用的也是同一份快照，而不是固定常数。
 
-`host-session` is the highest-fidelity gate and the reason the two bugs above were found. It loads
-the `Session` class out of the installed app bundle and replays captured logs through it, so the
-appends are validated by the host's `validateSessionEventData`, the projection is built by its
-`SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 216 logs seed, 70 fold (twice each, to prove a folded session can be
-folded again), 32 of those folds come from the pre-flight path before any request failed, and the
-rest are skipped because the host itself cannot re-seed them in isolation (a foreign plugin's
-message projection, or a pre-v4 log).
+`host-session` 是保真度最高的一道闸门，也是上面那两个 bug 的被发现处。它把**装好的 app 里那份**
+`Session` 类加载出来回放真实日志：追加由宿主自己的 `validateSessionEventData` 校验，投影由它的
+`SurfaceManager` 构建，断言对象是 `deriveMessages()` —— 也就是下一次请求真正要发的那串消息。
+216 份日志能播种，70 份完成折叠（每份折两次，证明折过的会话还能再折），其中 32 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
+自己也没法重建的（别的插件的事件投影、或 v4 之前的旧格式）。
 
-`boot-check` goes one level higher: it boots the application. It builds five throwaway profiles, four of
-them from the shipped `headless` template — first a copy of this package whose `apply()` throws, and asserts
-the host reports that error under the very entry it inserted (`context-rescue (dsh-context-rescue)`),
-because a clean "no error" run would otherwise prove nothing; then the real tarball, and asserts the
-boot walks past mounting with no error naming the plugin and stops at the model call, exactly where
-a machine without an API key stops; finally `billion-context`, the proxy that owns the compression
-lane on some machines, is installed next to the plugin and the composed profile is booted again, so
-"works beside the lane owner" is measured instead of assumed; and `dsh-smart-compact`, the plugin
-that overrides the compaction engine, gets the same treatment, because two plugins reaching for one
-slot is a composition problem; the fifth profile is built from the `web` template instead, which is
-the shape the desktop app composes, and the assertion there is that the entry lands in the same tree
-as `@deepseek-ai/dsh-client-ui-commands` — the bundle that renders the command surface a user sees.
-That profile is then started for real: the host must print its URL, hand the printed URL's auth
-cookie to a request, and serve the UI document. A bundle that breaks the GUI host never gets that far.
-All five profiles are removed afterwards. It proves mounting, not inference.
+`boot-check` 再高一层：它真的启动应用。它建五个一次性 profile，其中四个来自出厂 `headless` 模板 ——
+第一个装的是**故意在 `apply()` 里抛错**的副本，断言宿主把这个错误挂在它自己插入的那个条目名下
+（`context-rescue (dsh-context-rescue)`）；这一步是反证，否则"跑绿了、没报错"什么都不能说明。
+第二个装真包，断言启动能走过挂载、没有任何指向本插件的错误，并停在模型调用处（没有 API key 的机器就停在那里）。
+第三个把 `billion-context`（某些机器上占着压缩车道的代理）和本插件装进同一个 profile 再启动一次，
+于是"能和车道持有者并排工作"是被测出来的，而不是被假设的。第四个对 `dsh-smart-compact` 做同样的事——它把压缩引擎本身换掉，两个插件同时伸手要一个服务是组合问题，单元测试看不到。
+第五个换成 `web` 模板——那才是桌面端真正组合出来的形状，断言本插件落在**和 `@deepseek-ai/dsh-client-ui-commands` 同一棵树**里，也就是用户看到的命令面板那一层。随后这个 profile 会被**真的启动**一次：宿主必须打印出自己的 URL、把 URL 里的认证 cookie 交给请求、并把 UI 文档吐出来——会让 GUI 起不来的包根本走不到这一步。五个 profile 用完即删。它证明的是"装得上、挂得住"，不证明"能推理"。
 
-`coexist` mounts the plugin beside the host's *real* compaction engine
-(`@deepseek-ai/dsh-compaction-basic`, the one a stock profile puts in the slot) with a fake `llm`
-that cannot summarize, and asserts three things: the plugin does not take the slot, a borrow that
-returns without shrinking the projection is not recorded as a rescue, and both the engine and the
-container are still intact after that borrow fails.
+`coexist` 把插件挂到**宿主真实的压缩引擎**旁边跑：它加载 app 里的 `@deepseek-ai/dsh-compaction-basic`，
+让引擎自己占住 `compaction` 槽位，然后只给假 `llm`（拿不到模型）。断言的是三件事——插件不抢槽、
+"借了引擎却没缩小投影"不算救回来、以及借失败之后引擎与容器都还完好（再调一次也不炸）。
 
-Borrowing is what makes the plugin safe to install next to a compactor that already owns the slot.
-`dsh-smart-compact@0.5.3` subclasses the same engine and overrides
-`compactIfNeeded(agent, trigger, signal)`: non-pressure triggers go straight through to the base
-engine, a pending `new_context` request bypasses the pressure bands, and a refusal resolves `null`
-rather than throwing. That override is why the plugin asks for `context-overflow` with the same
-three arguments, treats `null` as "nothing shrank" and falls through to the zero-model fold, and a
-unit test pins that an engine throwing for its own reasons (a budget measurement error, a base
-engine failure) is neither counted as a lane refusal nor able to stop the fold.
+"借"是它敢跟已有压缩器并排装的原因。`dsh-smart-compact@0.5.3` 继承的是同一个引擎，并重写了
+`compactIfNeeded(agent, trigger, signal)`：非压力触发直接交给基础引擎、有待处理的 `new_context` 请求时
+绕过压力档、拒绝时返回 `null` 而不是抛错。正因为这层重写，我们才用同样三个参数去问 `context-overflow`，
+把 `null` 当作"什么都没缩小"继续走零模型折叠；另有单测钉住——引擎因自身原因抛错（预算测量失败、基础引擎
+报错）既不算"车道拒绝"，也拦不住折叠。
 
-`mount-check` is the integration gate: it loads the plugin into the **installed app's** cordis
-4 container, so it exercises the real `inject`/`Service` wiring and the real
-`ctx.waterfall('agent/request-error', payload, next)` dispatch instead of a hand-rolled context.
-It asserts the tools land on the real `tools` service, the waterfall answers `{kind:'retry'}`,
-the surface is rewritten with a checkpoint, the per-turn budget stops the third attempt, the
-tools answer through the service, and — with a host compaction engine mounted first — the slot
-still routes to that engine while the rescue still completes on the zero-model tier.
+`mount-check` 是集成闸门：它把插件装进**本机已安装 app** 自带的 cordis 4 容器，因此验证的是
+真实的 `inject`/`Service` 接线和真实的 `ctx.waterfall('agent/request-error', payload, next)`
+派发，而不是手搓的假 context。它断言工具确实注册到真实 `tools` 服务、瀑布返回
+`{kind:'retry'}`、投影被改写成检查点、每轮预算拦住第三次、工具能通过服务响应，以及在先挂了
+宿主压缩引擎时服务槽仍归宿主、急救仍在零模型档完成。
 
-`install-smoke` is the packaging gate: `npm pack` decides what ships (the `files` list),
-the tarball installs as a dependency in a throwaway project, the **host's own**
-`bundlePatchPaths`/`loadOverlayPatches` resolve the patch from the installed path, and
-`evaluatePluginCompatibility` accepts the installed manifest — with a deliberately
-unsatisfiable `engines.dsh` checked alongside it, so the gate cannot pass vacuously. A file
-dropped from `files`, or a patch resolved against the wrong directory, fails there and nowhere
-else — the other gates read the source tree.
+`install-smoke` 是打包闸门：`npm pack` 决定最终发出去的形状（受 `files` 白名单约束），
+tarball 被当作依赖装进一次性项目，`evaluatePluginCompatibility` 断言宿主接受这个 manifest
+（同时用一个故意写成不可能满足的 `engines.dsh` 做反例，保证这道闸门不会空过），再由**宿主自己的**
+`bundlePatchPaths`/`loadOverlayPatches` 从"安装后的路径"解析出 patch。少一个文件、或 patch 相对目录解析错，只会在这一关暴露 —— 其余闸门
+读的都是源码树。
 
-The simulation is not decoration: it caught a real bug, where the measurement path inherited
-the digest renderer's 2000-character clamp and priced a 480,000-character message at 1,992
-tokens — making the plugin believe an oversized session fit.
+模拟不是摆设：它抓到了一个真 bug —— 计量路径复用了摘要渲染的 2000 字符截断，把一条
+480,000 字符的消息算成 1,992 tokens，插件因此误判"装得下"。
 
-`publish:rehearse` closes the last gap that a source-tree test cannot reach: `publish-remote`
-is the one step that needs an account, so the rehearsal clones this checkout into a temp
-directory, creates a bare repository as the remote, runs the real script against it, and then
-asserts what a host would see — the pushed branch, a `market/index.json` that the host's own
-`parseMarketIndex` accepts, an entry pinned to the commit that carried the code (not to the
-index commit itself), the commit-pinned `git+…#<commit>` install spec, and repository metadata
-written into the pushed `package.json`. It needs a full checkout: git refuses to push a shallow
-history, so the script says so and exits non-zero instead of pretending to pass (CI checks out
-with `fetch-depth: 0`).
+`publish:rehearse` 补上源码树测试碰不到的最后一段：`publish-remote` 是唯一需要账号的步骤，
+所以排练会把本 checkout 克隆到临时目录、建一个裸仓库当远端、对它跑**真实的发布脚本**，再断言
+宿主会看到什么 —— 推上去的分支、能被宿主 `parseMarketIndex` 接受的 `market/index.json`、
+条目 pin 住的 commit 确实是"带代码的那个"而不是索引 commit 自己、commit 钉死的
+`git+…#<commit>` 安装 spec，以及写进推送后 `package.json` 的仓库元信息。
 
-## When it does not rescue
+## 它没救回来时
 
-Read the plugin's own state instead of guessing. `context_rescue` with
-`action: "status"`, or `/rescue-status` in the input box, reports
-`measuredTokens`, `window.windowTokens`, `fits`, `foldSupported`, `hostCompaction`,
-`toolResultPruner` and `laneBlocked` for the current session.
+不要猜，直接读插件自己的状态：`context_rescue` 的 `action: "status"`，或输入框里的
+`/rescue-status`，会报出当前会话的 `measuredTokens`、`window.windowTokens`、`fits`、
+`foldSupported`、`hostCompaction`、`toolResultPruner` 与 `laneBlocked`。
 
-While the session is over the window, the report also previews the fold it would perform:
-how many nodes it would replace and their sequence range, how much history that is in
-tokens, how many characters the summary would take, and how much recent history would be
-kept. A status call writes nothing — the preview is the same plan `/rescue` would run,
-computed and then thrown away.
+当会话确实超出窗口时，这份报告还会**预览**它会怎么折：替换几个节点、序列区间、这段历史有多少
+token、摘要多长、保留多少近期历史。查状态不会写任何东西——预览就是 `/rescue` 会执行的那份计划，
+算出来看一眼就丢掉。
 
-| Symptom | What it means | What to do |
+| 现象 | 含义 | 处理 |
 |---|---|---|
-| No `armed: context-overflow rescue active` line at startup | the host skipped the bundle | check `engines.dsh` against the app version, and that the patch file resolved inside the installed package |
-| `fits: true` yet the provider rejects the request | the window estimate is larger than what the gateway enforces | the failure text usually carries the real number; when it does not, set `windowFallback` to the enforced window |
-| `laneBlocked: true` | billion-context refused the host's own compaction on this lane | the plugin stays on the zero-model path; set `zeroModelOnly: true` to make that explicit and stop asking |
-| `foldSupported.ok: false` | this session shape does not expose `append`/`surface.nodes`/`eventAt` | a host version mismatch — the plugin refuses to rewrite a projection it cannot re-read |
-| `hostCompaction: absent` | no compaction engine is mounted | harmless: tier 2 is skipped and the zero-model ladder still runs |
-| the preview says a rescue would find nothing to fold | the overshoot is inside the retained tail and no single message explains it | set `pinFirstUserMessage: false`, or raise `retainRatio` so less of the tail is protected |
-| the rescue ran but the request still fails | the payload is still larger than the window | lower `retainRatio`/`retainMaxTokens`, or start a new turn and let the checkpoint carry the gist |
+| 启动时没有 `armed: context-overflow rescue active` 这一行 | 宿主跳过了这个 bundle | 核对 `engines.dsh` 与 app 版本，并确认 patch 文件在安装目录里能解析到 |
+| `fits: true` 但 provider 仍然拒绝 | 窗口估计比网关真正执行的上限大 | 失败文案里通常带着真实数字；没有数字时把 `windowFallback` 设成实际窗口 |
+| `laneBlocked: true` | billion-context 拒绝了宿主自己的压缩 | 插件会留在零模型路径上；可设 `zeroModelOnly: true` 把这点写明，不再尝试借用 |
+| `foldSupported.ok: false` | 这个会话形状没有 `append`/`surface.nodes`/`eventAt` | 宿主版本不匹配 —— 插件拒绝改写自己读不回来的投影 |
+| `hostCompaction: absent` | 没有挂载压缩引擎 | 无害：第二档跳过，零模型阶梯照常跑 |
+| 预览说 a rescue would find nothing to fold | 超出的部分全在保留的尾部里，且没有单条消息能说明问题 | 设 `pinFirstUserMessage: false`，或调高 `retainRatio` 让更少的尾部被保护 |
+| 救过了但请求仍然失败 | 折叠后仍然超窗 | 调低 `retainRatio`/`retainMaxTokens`，或开新的一轮让检查点接住要点 |
 
-## Limits
+## 局限
 
-- It rescues once the request has failed. If you would rather never see the failure, combine it
-  with a preventive compactor; the two do not collide.
-- The digest preserves structure and pointers, not every token.
-- Marking a proxy lane blocked is per process; restarting the host re-tries it once, on purpose.
+- 它在请求失败之后动手。想完全不看到失败，请搭配一款事前预防插件，两者不冲突。
+- 摘要保留骨架与线索，不保留每一个 token。
+- "车道被拒"只在进程内记忆；重启宿主会再试一次，这是有意的（代理策略可能已改）。
 
-## License
+## 许可证
 
-MIT.
+MIT。

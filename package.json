@@ -1,7 +1,7 @@
 {
   "name": "dsh-context-rescue",
   "version": "0.2.4",
-  "description": "Emergency rescue for DeepSeek Harness sessions that hit the model context window: detect the overflow, fold the oldest history into a durable digest, retry the same step.",
+  "description": "给爆窗的 DSH 会话叫救护车：识别上下文溢出、把最老的历史折叠成结构化摘要、原步重试一次。 Emergency rescue for DeepSeek Harness sessions that hit the model context window.",
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -15,7 +15,7 @@
     "market/icon.svg",
     "docs/",
     "README.md",
-    "README.zh-CN.md",
+    "README.en.md",
     "LICENSE",
     "CHANGELOG.md"
   ],
