@@ -6,6 +6,10 @@
 
 **Emergency rescue for DeepSeek Harness sessions that hit the model context window.**
 
+> Note: the landing page and the release notes are in Chinese, which is what the project owner asked
+> for; this English README is kept in sync. The engineering notes under `docs/` are Chinese too, and
+> the code, the gate names and every command are unchanged by the language.
+
 Your session answers every message with `400` because one request is larger than the
 provider will accept. `/compact` does not help: it resends the same oversized surface, and
 when a proxy owns compression it is refused outright. This plugin is the ambulance — it

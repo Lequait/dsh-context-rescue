@@ -8,6 +8,8 @@
 ### 变更
 
 - **落地页改成中文。** `README.md` 现在是中文文档，英文版移到 `README.en.md`，两页顶部都有语言切换。包描述、仓库描述以及接下来的发行说明也一并以中文为主，让访客打开页面读到的就是它本来的写法，而不是另一份的译文。插件本身没有任何变化：代码、schema、命令、每一道闸门都没动。`package.json` 的 `files` 跟随改名，发出去的 tarball 仍然同时带两种语言。
+- **工程笔记也改成中文。** `docs/PLAN.md`（工作计划与验证矩阵）与 `docs/PUBLISH.md`（发布与列表投稿手册）整篇翻成中文，命令、路径、闸门名、断言条数与所有数字保持原样，`docs/FEASIBILITY.md` 本来就是中文。顺带把两处已经过时的事实更新成现状：阶段 G 的"npm 还没发布、列表还在等年龄门槛"改成已发布 0.2.2–0.2.4 与 PR #10903，`host-session` 的日志数改成 222。
+- **发行页以后由工作流自己建。** 之前 `release.yml` 只发 npm、不建 GitHub Release，于是 `v0.2.4` 有 tag 却没有页面（0.2.0–0.2.3 都是手工建的）。现在 `permissions` 给了 `contents: write`，末尾新增一步 `Create the GitHub release`：已存在就跳过，否则用 `scripts/dev/release-notes.mjs <version>` 从 `CHANGELOG.md` 取该版本段作为正文，`gh release create` 建页。取段落这件事有 6 个单测钉着（含 `v` 前缀、`. `按字面匹配、段落缺失时给指针而不是编造）。
 
 ### 修复
 
