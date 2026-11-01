@@ -4,8 +4,8 @@ Everything that can be built without credentials is already done and green:
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit + fold + rescue + repair + trim + tools + commands + schema + market + listing rules | `npm test` | 142 tests, 139 pass, 3 skipped (host-only) |
-| Same suite under the app's own Node | `npm run test:host` | 142 tests, 140 pass, 2 skipped |
+| Unit + fold + rescue + repair + trim + tools + commands + schema + market + listing rules + release notes | `npm test` | 148 tests, 145 pass, 3 skipped (host-only) |
+| Same suite under the app's own Node | `npm run test:host` | 148 tests, 146 pass, 2 skipped |
 | JSDoc type contract over `index.js` + `lib/` | `npm run typecheck` | 0 errors in 14 files |
 | Four failure scenarios | `npm run simulate` | all pass |
 | Mount in the installed host's cordis 4 | `npm run mount-check` | 26 assertions pass |
@@ -132,7 +132,7 @@ Requirements that apply to this repo, checked against the guide on 2026-10-30:
 | --- | --- |
 | `dsh.bundle` manifest in `package.json` | present (`bundle.patch`) |
 | [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic | set on `Lequait/dsh-context-rescue` |
-| real, working code | 142 tests, ninth host-side gate |
+| real, working code | 148 tests, ninth host-side gate |
 | repo at least **1 day old** | created 2026-10-30T10:28Z, so submit no earlier than 2026-10-31T10:28Z |
 | description states function only | no superlatives; every claim above maps to `lib/` |
 
@@ -227,7 +227,7 @@ One artifact to know about: npm's staged publishing reserves a new name with a p
 `0.0.0-stage` stub version. It cannot be removed through a granular token, so it was deprecated
 instead (`npm deprecate dsh-context-rescue@0.0.0-stage "placeholder created by staged publishing;
 install 0.2.2 or later"`), which is what a person sees if they ask for it by name. `latest` points
-at 0.2.2, so a plain `npm i dsh-context-rescue` never resolves to the stub.
+at 0.2.4, so a plain `npm i dsh-context-rescue` never resolves to the stub.
 
 Either publish locally, through the guard script:
 
@@ -245,6 +245,15 @@ the install smoke and the publish rehearsal first, refuses a tag that disagrees 
 ```bash
 git tag v0.2.4 && git push origin v0.2.4   # NPM_TOKEN is already set; the workflow publishes
 ```
+
+The same workflow creates the GitHub release page, with the `CHANGELOG.md` section for that version
+as the body (`node scripts/dev/release-notes.mjs <version>` prints exactly what it uses). That is why
+the pages read the way they were written rather than as generated English commit titles, and why the
+changelog is the one place to edit. A release that already exists is left alone, so re-running the job
+is safe and a hand-edited page is never overwritten; if the section is missing the body points at the
+changelog instead of inventing text. The 0.2.0–0.2.4 pages predate the step: they were created by hand
+and then translated, which is how the gap between `v0.2.4`'s tag and its missing release page was
+found.
 
 The package ships `index.js`, `lib/`, `cordis.patch.yml`, `market/icon.svg`, `docs/`, both
 READMEs, `CHANGELOG.md` and the license — the tarball carries only the icon from `market/`, since

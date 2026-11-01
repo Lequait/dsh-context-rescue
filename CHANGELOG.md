@@ -1,28 +1,17 @@
 # Changelog
 
+> 从 0.2.5 起，本文件与 GitHub Release 说明用中文写；0.2.4 及更早保留英文原文。
+> 发行页由 `release.yml` 从本文件对应版本段生成，所以这里写什么，Release 页就显示什么。
+
 ## Unreleased
 
-### Changed
+### 变更
 
-- **The landing page is Chinese now.** `README.md` is the Chinese document, and the English one
-  moved to `README.en.md` with a language switch at the top of both. The package description, the
-  repository description, and the next release notes are Chinese-first too, so the page a visitor
-  lands on reads the way it was written rather than as a translation of the other one. Nothing
-  about the plugin changed: the code, the schema, the commands, and every gate are untouched.
-  `package.json` `files` follows the rename, so the published tarball still carries both languages.
+- **落地页改成中文。** `README.md` 现在是中文文档，英文版移到 `README.en.md`，两页顶部都有语言切换。包描述、仓库描述以及接下来的发行说明也一并以中文为主，让访客打开页面读到的就是它本来的写法，而不是另一份的译文。插件本身没有任何变化：代码、schema、命令、每一道闸门都没动。`package.json` 的 `files` 跟随改名，发出去的 tarball 仍然同时带两种语言。
 
-### Fixed
+### 修复
 
-- **The network gates failed when the network was down, instead of saying so.** `market-install`
-  and `e2e-install -- --git` reach `raw.githubusercontent.com` and `github.com`; when those
-  connections die (timeouts, `ECONNRESET`, a blocked route) the gate crashed with an undici stack
-  trace and a red row, which says nothing about this plugin. They now retry the fetch three times
-  with a widening pause, and when the host still cannot be reached they print `SKIP` with the line
-  that failed and exit 0 — while a host that answers and hands back a wrong artifact still fails,
-  because the classification is keyed to connection-level output only. `npm run verify:network`
-  shows those rows as `skip`, and its totals count them separately instead of calling them passes.
-  The gate scripts also stop dereferencing a manifest that is absent when the install itself never
-  happened.
+- **网络闸门在网络断掉时，以前会报红，而不是说明原因。** `market-install` 与 `e2e-install -- --git` 要连 `raw.githubusercontent.com` 和 `github.com`；连接死掉时（超时、`ECONNRESET`、路由被墙）闸门会抛 undici 的堆栈并记一行红，而这跟插件没有任何关系。现在它们会把请求重试三次（间隔渐宽），仍然连不上就打印 `SKIP` 与失败那一行并退 0；而主机应答了却给出错误制品，照旧判失败——因为分类只看连接层输出。`npm run verify:network` 把这些行显示为 `skip`，汇总里单独计数，不再算成通过。两个闸门脚本也不再在"安装压根没发生"时去读一个不存在的 manifest。
 
 ## 0.2.4 — 2026-10-31
 

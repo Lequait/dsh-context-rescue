@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # the release page is created from the changelog
   id-token: write # provenance
 
 jobs:
@@ -82,3 +82,21 @@ jobs:
             fi
             echo "- market/index.json pins the git commit, which is what a listing installs"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Create the GitHub release
+        # The changelog section for this version is the release body. Writing it here instead of
+        # letting `gh release create --generate-notes` invent English commit titles is the one
+        # reason our release pages read the way they were written. An existing release is left
+        # alone, so a re-run or a hand-edited page is never overwritten.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${REF_NAME#v}"
+          if gh release view "v${version}" >/dev/null 2>&1; then
+            echo "release v${version} already exists; leaving it alone"
+            exit 0
+          fi
+          node scripts/dev/release-notes.mjs "${version}" > "${RUNNER_TEMP}/notes.md"
+          gh release create "v${version}" --title "v${version}" --notes-file "${RUNNER_TEMP}/notes.md"
+          echo "created the release page for v${version}"
