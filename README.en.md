@@ -332,11 +332,47 @@ measured size all match the live session.
 **A log that is already broken is not repaired by this.** The host runs
 `assertReleasedV4Relationships` while loading, so an illegal bracket stops the whole session from
 loading — the plugin never gets to run. 0.2.5 stops new logs from being written badly; it cannot
-rescue one written by an older version. Those need a one-off edit on a copy: promote the
-`compaction/prune` to a `compaction/summary` (reusing the digest already stored in the checkpoint) and
-give `compaction/start` and `compaction/end` the same `turn`, then verify with the
-`restoreReleasedV4Artifact` + `assertReleasedV4Relationships` pair used in
-`scripts/dev/host-session-check.mjs` before replacing the original file.
+rescue one written by an older version. That is a separate job, below.
+
+### When you need `repair-log`
+
+One case only: **a session folded by 0.2.0–0.2.4 that will not open after a restart.** The symptom is
+
+```
+stored session "session-…" is corrupt: … SessionFormatError: successful compaction/end requires one summary
+```
+
+or `compaction turn must be a non-negative safe integer`. The tell is that the fold worked fine at the
+time and only the restart fails: append-time validation is a subset of restore-time validation, so a
+bad log looks healthy inside the process that wrote it.
+
+First ask the host about every log on the machine (read-only, writes nothing):
+
+```bash
+node scripts/repair-log.mjs --scan            # ~/.dsh/sessions by default
+```
+
+It runs the host's own restore validator over each log and lists the rejected ones, why they were
+rejected, and whether this tool can fix them. To fix one:
+
+```bash
+node scripts/repair-log.mjs <session.v4.jsonl.zstd>            # dry run: what would change
+node scripts/repair-log.mjs <session.v4.jsonl.zstd> --write    # write a repaired copy beside it
+node scripts/repair-log.mjs <session.v4.jsonl.zstd> --in-place --yes   # back up, then replace
+```
+
+Once installed as a package, `npx dsh-context-rescue-repair --scan` does the same thing.
+
+It does three things, each with a reason: promote the bracket's `compaction/prune` to a
+`compaction/summary` (reusing the digest the checkpoint in that bracket already holds), give
+`compaction/start` and `compaction/end` the `turn` that was open at that point, and complete the
+checkpoint's `sourceEventSeqs` from the bracket's own records. **It reads the result back and checks it
+again** before anything lands on disk, and `--in-place` always leaves a `*.backup-<timestamp>` first.
+It never deletes events, never renumbers sequences and never guesses: a bracket spanning a turn
+boundary, a repeated `compaction/start`, or a bracket with no prune to promote is reported with its
+reason and left for a human.
+
+Logs folded by 0.2.5 or later do not need it — a clean `--scan` means there is nothing to repair.
 
 The projection cannot be un-folded in place. `@deepseek-ai/dsh-session` defines `compaction/start`,
 `compaction/prune` and `compaction/end`, and no void event — there is nothing to append that puts
@@ -404,7 +440,7 @@ rejection that forces the ladder, an internal throw that is handed back to the h
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
-sweeps every log on this machine and folds each oversized one with zero model calls: 45 of 283
+sweeps every log on this machine and folds each oversized one with zero model calls: 45 of 289
 captured sessions exceed a 196,608-token window and all 45 are rescued, with no failure
 (`docs/PLAN.md` §5). The counts here are a snapshot of this machine: they grow as
 sessions are captured, and `scan` and `host-session` recompute them, so the numbers below are
@@ -414,7 +450,7 @@ that same snapshot rather than fixed constants.
 the `Session` class out of the installed app bundle and replays captured logs through it, so the
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 283 logs seed, 105 fold (twice each, to prove a folded session can be
+next request would carry. 295 logs seed, 105 fold (twice each, to prove a folded session can be
 folded again), 41 of those folds come from the pre-flight path before any request failed, and the
 rest are skipped because the host itself cannot re-seed them in isolation (a foreign plugin's
 message projection, or a pre-v4 log). After each fold it also hands the whole log to the host's own

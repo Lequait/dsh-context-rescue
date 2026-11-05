@@ -4,16 +4,17 @@
 
 | 闸门 | 命令 | 结果 |
 |---|---|---|
-| 单测 + 折叠 + 急救 + 事务修复 + 摘录 + 工具 + 命令 + schema + 市场 + 列表规则 + 发行说明 | `npm test` | 150 tests, 147 pass, 3 skipped（仅宿主侧） |
-| 同一套在应用自己的 Node 下跑 | `npm run test:host` | 150 tests, 148 pass, 2 skipped |
+| 单测 + 折叠 + 急救 + 事务修复 + 摘录 + 工具 + 命令 + schema + 市场 + 列表规则 + 发行说明 | `npm test` | 158 tests, 155 pass, 3 skipped（仅宿主侧） |
+| 同一套在应用自己的 Node 下跑 | `npm run test:host` | 158 tests, 156 pass, 2 skipped |
 | `index.js` + `lib/` 的 JSDoc 类型契约 | `npm run typecheck` | 14 个文件 0 error |
 | 四种失效场景 | `npm run simulate` | 全过 |
 | 在已安装宿主的 cordis 4 里挂载 | `npm run mount-check` | 26 条断言通过 |
 | 打包 → 安装 → 宿主 bundle 解析 | `npm run install-smoke` | 16 条断言通过（tarball 内容、安装后的 manifest、宿主加载器、兼容性、导入入口、裸模块名解析） |
 | 对着一个一次性远端跑发布流程 | `npm run publish:rehearse` | 18 条断言通过（首次推送把 `master` 改名为 `main`；已经发布 `master` 的仓库保留它；被宿主接受的索引条目、钉住的 commit、安装 spec） |
-| 扫描本机抓到的一切会话日志 | `npm run scan` | 283 logs, 45 oversized, 45 rescued, 238 skipped, 0 failed |
+| 扫描本机抓到的一切会话日志 | `npm run scan` | 289 logs, 45 oversized, 45 rescued, 244 skipped, 0 failed |
 | 真实应用启动并挂载 bundle | `npm run boot-check` | 33 条断言：植入的 throw 以插件条目出现，真包启动则无此字样，且在 `billion-context`（车道归属者）与 `dsh-smart-compact`（引擎覆写者）旁边同样能挂，还能组合进桌面应用实际运行的 `web` 形状（与渲染命令面的是同一棵树），最后把这个宿主真的启动起来：打印 URL、发放鉴权 cookie、把 UI 文档服务出来 |
-| 宿主自己的 `Session` 类（来自应用 bundle） | `npm run host-session` | 283 份日志播种成功，105 份被折叠（其中 41 份走预检路径），178 份宿主自己拒绝播种，0 失败；每份折叠过的日志都由宿主自己的恢复校验器重放 |
+| 宿主自己的 `Session` 类（来自应用 bundle） | `npm run host-session` | 295 份日志播种成功，105 份被折叠（其中 41 份走预检路径），190 份宿主自己拒绝播种，0 失败；每份折叠过的日志都由宿主自己的恢复校验器重放 |
+| 把宿主拒绝的日志修回来 | `npm run repair-check` | 10 条断言：按 0.2.4 的形状造一份宿主**拒绝**的日志（证明复现了 issue #1），再跑 `repair-log` 的演练、`--in-place` 缺 `--yes` 的拒绝、`--write` 出副本、`--in-place --yes` 出备份，每一步都用宿主校验器复核 |
 | 一次救援与一次预检的代价 | `node scripts/dev/rescue-bench.mjs` | 在最大的 19 份日志上：救援中位数 1.1 s、p95 7.9 s（大部分是读日志）；预检冷 16 ms、热 0 ms——同一轮里的第二次检查不重新测量 |
 | 槽里的真实宿主压缩引擎 | `npm run coexist` | 14 条断言：`compaction-basic` 仍占着槽，无模型时借用会失败，零模型的折叠完成，事务闭合 |
 | 按用户的方式安装 | `npm run e2e-install` | 10 条断言：`dsh plugin --profile … add <tarball>` 建出 profile、打开 bundle，宿主加载器能从里面解析出 patch；完成后删掉 profile |
@@ -25,7 +26,7 @@
 
 剩下的事情都需要一个已认证的远端：上面这些没有一条能自己创建或写入一个托管仓库。
 
-由日志得来的数字（`283 logs`、`45 rescued`、`105 folds`、`172 skipped`）和下面的 bench 耗时是这台开发机的
+由日志得来的数字（`289 logs`、`45 rescued`、`105 folds`、`190 skipped`）和下面的 bench 耗时是这台开发机的
 快照：会话一多它们就变，`scan`、`host-session`、`rescue-bench` 会重新算。
 
 那张表里有四行需要联网：`e2e-install -- --git`、`e2e-install -- --npm`、`market-install`、`publish:rehearse`

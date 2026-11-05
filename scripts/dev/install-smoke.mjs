@@ -69,7 +69,12 @@ async function main() {
       !files.includes('market/index.json'),
       'it must pin the commit it is pushed with, so it is produced per release instead',
     );
-    check('the tarball excludes tests/ and scripts/', !files.some((f) => f.startsWith('tests/') || f.startsWith('scripts/')));
+    check('the tarball excludes tests/ and the gate scripts', !files.some((f) => f.startsWith('tests/') || f.startsWith('scripts/dev/')));
+    check(
+      'the tarball carries the repair CLI and what it imports',
+      ['scripts/repair-log.mjs', 'scripts/session-log.mjs', 'scripts/host-paths.mjs'].every((f) => files.includes(f)),
+      'the bin entry points at scripts/repair-log.mjs, so a missing import would break it after install',
+    );
 
     fs.writeFileSync(
       path.join(workdir, 'package.json'),

@@ -18,7 +18,7 @@ import { existsSync, statSync } from 'node:fs';
 
 import { ReplaySession, expandHome, newestUnder } from '../scripts/dev/replay-session.mjs';
 
-import { loadSessionLog, reconstructSurface, supportsZstd } from '../scripts/dev/session-log.mjs';
+import { loadSessionLog, reconstructSurface, supportsZstd } from '../scripts/session-log.mjs';
 import { measure } from '../lib/measure.js';
 import { applyFold } from '../lib/fold.js';
 import { hasOpenCompactionTransaction, pairingCuts, planFold } from '../lib/plan.js';

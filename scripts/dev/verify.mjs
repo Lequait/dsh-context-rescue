@@ -34,6 +34,7 @@ const STEPS = [
   { group: 'host', script: 'e2e-install', note: 'the app CLI installs the tarball' },
   { group: 'host', script: 'boot-check', note: 'five profiles, one real web host' },
   { group: 'host', script: 'host-session', note: 'folds the captured logs twice each' },
+  { group: 'host', script: 'repair-check', note: 'repairs a log the host rejects' },
   { group: 'host', script: 'scan', note: 'the full sweep over the same logs' },
   { group: 'network', script: 'e2e-install --git', note: 'installs the repository spec' },
   { group: 'network', script: 'e2e-install --npm', note: 'installs the registry spec' },

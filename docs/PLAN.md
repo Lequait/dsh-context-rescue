@@ -199,9 +199,10 @@ request-error 钩子也必须装上，并在 `internal/service` 时重试注册�
 | 崩溃留下的半截事务 | 早先某轮遗留的 `compaction/start` 在规划之前被闭合，于是折到一半死掉的会话又能折了；当前轮遗留的那个不动 | `tests/repair.test.js`（5 个测试） |
 | 预检开销 | pre-step 钩子每轮只测一次，之后只数追加进来的部分，所以长轮次不会每个 step 都给整个投影重新计价；一次大粘贴或外来的折叠会强制真测 | `tests/preflight.test.js`（`countingMeter`：3 个测试），`scripts/dev/rescue-bench.mjs` 打印最大日志的冷/热耗时 |
 | 超大的首条消息 | 第一条用户消息本身就超窗的会话会被折叠，而不是被判"折不动" | `tests/fold.test.js`（2 个测试）、`tests/rescue.test.js`（1 个测试） |
-| 宿主 Session 类 | 折叠被宿主自己的 `Session` 接受：追加通过 `validateSessionEventData`，投影由 `SurfaceManager` 重建，`deriveMessages()` 不留孤儿工具结果，括号闭合 | `scripts/dev/host-session-check.mjs`：283 份日志播种成功，105 份折叠两次，其中 41 份还走预检路径，178 份被宿主自己拒绝播种，0 失败；折叠后、二次折叠后、预检折叠后与最终日志四处都用 `restoreReleasedV4Artifact` + `assertReleasedV4Relationships` 重放 |
+| 宿主 Session 类 | 折叠被宿主自己的 `Session` 接受：追加通过 `validateSessionEventData`，投影由 `SurfaceManager` 重建，`deriveMessages()` 不留孤儿工具结果，括号闭合 | `scripts/dev/host-session-check.mjs`：295 份日志播种成功，105 份折叠两次，其中 41 份还走预检路径，190 份被宿主自己拒绝播种，0 失败；折叠后、二次折叠后、预检折叠后与最终日志四处都用 `restoreReleasedV4Artifact` + `assertReleasedV4Relationships` 重放 |
 | 真实压缩引擎 | 插件可以借用 `dsh-compaction-basic`（stock profile 放进槽里的那个引擎）而不占槽，也不把"借了但什么都没变"算成救援，借用失败时不把引擎或会话留在坏状态 | `scripts/dev/coexist-check.mjs`（14 条断言，真实引擎，无模型） |
 | 真实事件形状 | surface 归属与 `isSurfaceEligibleType` 一致（`tool/call` 与 `tool/ptc-dispatch` 不是 surface 节点），且事件通过 `snapshotEvents()` 读取，因为宿主 `Session` 没有 `.events` | 两条都由上面的 host-session 闸门钉住 |
+| 已经被写坏的日志 | 0.2.0–0.2.4 折叠过的日志重启后会被宿主拒绝加载，插件没有机会运行，所以只能从外面修：把括号里的 `compaction/prune` 提升成 `compaction/summary`、给 start/end 补 turn、补全检查点的 `sourceEventSeqs`；修完必须通过宿主校验器才落盘，`--in-place` 必留备份 | `tests/repair-log.test.js`（8 个测试）、`npm run repair-check`（10 条断言：先造一份宿主拒绝的日志证明复现了 issue #1，再逐步验证演练/拒绝/副本/备份） |
 | 会覆写引擎的压缩器 | `dsh-smart-compact@0.5.3` 在 `dsh-compaction-basic` 之上替换了 `compactIfNeeded(agent, trigger, signal)`：非压力触发走基础引擎，待处理的 `new_context` 请求绕过压力带，拒绝时 resolve `null`。因此借用用的是那个确切签名，把 `null` 当作"没缩小"，并且绝不因为引擎的 bug 而锁死 `laneBlocked` | 覆写签名读自发布 tarball；`null` 路径由 `a borrowed engine that changes nothing…` 覆盖，抛错路径由 `a host engine that throws for its own reasons…` 覆盖 |
 
 ## 5. 真实日志证据

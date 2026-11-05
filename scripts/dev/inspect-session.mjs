@@ -11,7 +11,7 @@
  * @module dsh-context-rescue/scripts/dev/inspect-session
  */
 
-import { loadSessionLog, reconstructSurface } from './session-log.mjs';
+import { loadSessionLog, reconstructSurface } from '../session-log.mjs';
 
 const path = process.argv[2];
 if (!path) {

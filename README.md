@@ -270,10 +270,42 @@ dsh plugin --profile <profile> remove dsh-context-rescue   # 然后重启应用
 当时活着的会话一致。
 **已经写坏的日志不会被这里修好。** 宿主加载一份日志时会先跑 `assertReleasedV4Relationships`，
 一旦括号不合法，整个会话就加载不了 —— 插件的代码根本没机会运行。所以 0.2.5 修的是"以后不再写坏"，
-不是"把坏的救回来"。这类日志只有一条路：在副本上把那个 `compaction/prune` 就地提升成
-`compaction/summary`（内容用检查点里已经写好的摘要），并给 `compaction/start` 与 `compaction/end`
-补上同一个 `turn`；做完再用 `scripts/dev/host-session-check.mjs` 里那套 `restoreReleasedV4Artifact` +
-`assertReleasedV4Relationships` 验一遍，通过后再替换原件。
+不是"把坏的救回来"。救回来是另一件事，见下一节。
+
+### 什么时候需要 `repair-log`
+
+只有一种情况：**你的会话是 0.2.0–0.2.4 折叠过的，而且重启后打不开了。** 症状是启动时弹出
+
+```
+stored session "session-…" is corrupt: … SessionFormatError: successful compaction/end requires one summary
+```
+
+或者 `compaction turn must be a non-negative safe integer`。特征是"折叠当时一切正常，重启才炸"：
+写入时的校验是恢复校验的子集，所以坏日志在写它的那个进程里看起来完全健康。
+
+先看这台机器上有没有这种日志（只读，不改任何东西）：
+
+```bash
+node scripts/repair-log.mjs --scan            # 默认扫 ~/.dsh/sessions
+```
+
+它用宿主自己的恢复校验器逐份检查，列出被拒绝的日志、拒绝原因，以及这份能不能修。修一份：
+
+```bash
+node scripts/repair-log.mjs <session.v4.jsonl.zstd>            # 演练：只说会改什么
+node scripts/repair-log.mjs <session.v4.jsonl.zstd> --write    # 在旁边写一份修好的副本
+node scripts/repair-log.mjs <session.v4.jsonl.zstd> --in-place --yes   # 先备份再替换原件
+```
+
+装成包之后也可以直接 `npx dsh-context-rescue-repair --scan`。
+
+它只做三件有据可依的事：把括号里的 `compaction/prune` 就地提升成 `compaction/summary`（摘要内容取
+同一个括号里检查点已经写好的文本）、给 `compaction/start` 与 `compaction/end` 补上当时开着的 `turn`、
+把检查点的 `sourceEventSeqs` 补全成括号自己的记录列表。**写完会重新读回来再验一遍**，宿主不接受就
+不落盘；`--in-place` 一定先留 `*.backup-<时间戳>`。它不删事件、不改序号、不猜：跨 turn 的括号、
+重复的 `compaction/start`、没有 prune 可提升的括号，一律只报告原因，让人来决定。
+
+0.2.5 及以后折叠的日志不需要它 —— `--scan` 全绿就说明没有需要修的东西。
 
 但投影**不能就地反折叠**：`@deepseek-ai/dsh-session` 只有 `compaction/start`、`compaction/prune`、
 `compaction/end`，没有作废（void）事件 —— 没有可以追加的东西把投影丢掉的历史放回来。事件本身
@@ -343,7 +375,7 @@ npm run publish:npm -- --dry-run
 本来就装得下的投影、同一轮内第二次被拒时强制走阶梯、内部异常交还宿主，以及计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
 `DSH_SESSION_LOG` 时自动跳过。`node scripts/dev/scan-sessions.mjs` 会把本机所有会话日志扫一遍，
-每个超标会话都在**零模型调用**下救回来：283 个已捕获会话里有 45 个超过 196,608 窗口，45 个全部
+每个超标会话都在**零模型调用**下救回来：289 个已捕获会话里有 45 个超过 196,608 窗口，45 个全部
 救回，0 失败（见 `docs/PLAN.md` §5）。这里的数字是本机的一份快照：会话还在不断产生，
 `scan` 与 `host-session` 会重新计算它们，所以下面引用的也是同一份快照，而不是固定常数。
 
@@ -353,7 +385,7 @@ npm run publish:npm -- --dry-run
 折叠之后它还会把整份日志交给宿主自己的恢复校验器（`restoreReleasedV4Artifact` +
 `assertReleasedV4Relationships`）重放一遍：这正是 issue #1 那个"写时通过、重启才炸"的 bug 的
 被发现处，也是现在唯一能挡住同类回归的断言。
-283 份日志能播种，105 份完成折叠（每份折两次，证明折过的会话还能再折），其中 41 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
+295 份日志能播种，105 份完成折叠（每份折两次，证明折过的会话还能再折），其中 41 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
 自己也没法重建的（别的插件的事件投影、或 v4 之前的旧格式）。
 
 `boot-check` 再高一层：它真的启动应用。它建五个一次性 profile，其中四个来自出厂 `headless` 模板 ——

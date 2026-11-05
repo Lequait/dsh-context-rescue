@@ -16,7 +16,7 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 
-import { loadSessionLog, reconstructSurface } from './session-log.mjs';
+import { loadSessionLog, reconstructSurface } from '../session-log.mjs';
 import { allLogsUnder, expandHome } from './replay-session.mjs';
 import { DEFAULTS, mergeConfig } from '../../lib/config.js';
 import { derivedTokensOf, eventsOf, measure, resolveWindow } from '../../lib/measure.js';

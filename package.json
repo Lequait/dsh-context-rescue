@@ -1,9 +1,12 @@
 {
   "name": "dsh-context-rescue",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "给爆窗的 DSH 会话叫救护车：识别上下文溢出、把最老的历史折叠成结构化摘要、原步重试一次。 Emergency rescue for DeepSeek Harness sessions that hit the model context window.",
   "type": "module",
   "main": "index.js",
+  "bin": {
+    "dsh-context-rescue-repair": "scripts/repair-log.mjs"
+  },
   "exports": {
     ".": "./index.js",
     "./lib/*": "./lib/*"
@@ -11,6 +14,9 @@
   "files": [
     "index.js",
     "lib/",
+    "scripts/repair-log.mjs",
+    "scripts/session-log.mjs",
+    "scripts/host-paths.mjs",
     "cordis.patch.yml",
     "market/icon.svg",
     "docs/",
@@ -37,6 +43,8 @@
     "publish:rehearse": "node scripts/run-host-node.mjs scripts/dev/publish-rehearse.mjs",
     "scan": "node scripts/dev/scan-sessions.mjs",
     "host-session": "node scripts/run-host-node.mjs scripts/dev/host-session-check.mjs",
+    "repair-check": "node scripts/run-host-node.mjs scripts/dev/repair-check.mjs",
+    "repair-log": "node scripts/run-host-node.mjs scripts/repair-log.mjs",
     "coexist": "node scripts/run-host-node.mjs scripts/dev/coexist-check.mjs",
     "e2e-install": "node scripts/run-host-node.mjs scripts/dev/e2e-install.mjs",
     "market-install": "node scripts/run-host-node.mjs scripts/dev/market-install.mjs",

@@ -18,7 +18,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { loadSessionLog, reconstructSurface } from './session-log.mjs';
+import { loadSessionLog, reconstructSurface } from '../session-log.mjs';
 import { ReplaySession, allLogsUnder, expandHome } from './replay-session.mjs';
 import { fakeMeter } from '../../tests/fake-session.js';
 import { measure } from '../../lib/measure.js';

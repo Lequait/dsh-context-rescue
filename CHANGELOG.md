@@ -3,6 +3,18 @@
 > 从 0.2.5 起，本文件与 GitHub Release 说明用中文写；0.2.4 及更早保留英文原文。
 > 发行页由 `release.yml` 从本文件对应版本段生成，所以这里写什么，Release 页就显示什么。
 
+## 0.2.6 — 2026-11-05
+
+### 新增
+
+- **`repair-log`：把 0.2.0–0.2.4 写坏的会话日志救回来。** 0.2.5 修的是"以后不再写坏"，但已经被写坏的日志宿主根本加载不了，插件没有机会运行，所以只能从外面修。新工具 `scripts/repair-log.mjs`（装成包后是 `npx dsh-context-rescue-repair`）做三件有据可依的事：把括号里的 `compaction/prune` 就地提升成 `compaction/summary`（摘要内容取同一括号里检查点已经写好的文本）、给 `compaction/start` 与 `compaction/end` 补上当时开着的 `turn`、把检查点的 `sourceEventSeqs` 补全成括号自己的记录列表。它不删事件、不改序号、不猜：跨 turn 的括号、重复的 `compaction/start`、没有 prune 可提升的括号一律只报告原因。
+- **`--scan`：先问宿主哪些日志是坏的。** `node scripts/repair-log.mjs --scan` 用宿主自己的 `restoreReleasedV4Artifact` + `assertReleasedV4Relationships` 逐份检查 `~/.dsh/sessions`，列出被拒绝的日志、原因、以及这份能不能修。只读，不写任何东西。本机实测 277 份日志里 276 份可加载，唯一被拒绝的那份是别的写入者留下的（`replacement sourceEventSeqs omit a shadowed surface node`），工具如实报告"不认识这个形状"而不是硬改。
+- **写之前先验，写完再读回来验一遍。** 修复结果必须通过宿主的恢复校验器才会落盘；`--in-place` 一定先留 `*.backup-<时间戳>`，并且用临时文件 + rename 原子替换。默认行为是只演练、什么都不写。
+
+### 闸门
+
+- **`repair-check`：用一份真的坏日志证明工具有效。** 它按 0.2.4 的形状造一份日志（`compaction/prune` 代替 summary、括号没有 turn），先断言宿主**拒绝**它（证明复现了 issue #1），再跑 CLI 的演练、`--in-place` 缺 `--yes` 的拒绝、`--write` 出副本、`--in-place --yes` 出备份，每一步都用宿主校验器复核。`npm run verify:host` 现在是 10 道闸门。
+
 ## 0.2.5 — 2026-11-05
 
 ### 变更
