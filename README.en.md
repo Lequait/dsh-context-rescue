@@ -50,7 +50,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 # from a checkout
 dsh plugin --profile <profile> add /path/to/dsh-context-rescue
 
-# from npm (0.2.4 is published)
+# from npm (0.2.5 is published)
 dsh plugin --profile <profile> add dsh-context-rescue
 ```
 
@@ -183,8 +183,10 @@ regardless of the code the host assigned.
      A borrowed engine only counts as a rescue when the projection actually shrank; an engine
      that resolves without doing anything falls through to T3. If a proxy refuses the lane
      (`dsh_compaction_refused`), remember that and never ask again in this process.
-   - **T3** — write a checkpoint: `compaction/start` → `compaction/prune` → `user/message` with
-     `surfaceOp: replace` → `compaction/end`, with a structured digest of the folded span.
+   - **T3** — write a checkpoint: `compaction/start` → `compaction/summary` → `user/message` with
+     `surfaceOp: replace` → `compaction/end`, with a structured digest of the folded span. The
+     summary is mandatory: the host's restore validator requires exactly one inside every bracket
+     it accepts, and both bracket records name the turn the fold happened in.
    - **T4** — when the overshoot *is* one message (a file pasted into the newest turn), there is
      no span to fold around it: replace that message with its own head and tail, and state the
      original length and what was dropped. Only text messages whose removal keeps tool pairing
@@ -318,12 +320,23 @@ Uninstalling is the rollback, and it needs no cleanup:
 dsh plugin --profile <profile> remove dsh-context-rescue   # then restart the app
 ```
 
-A fold is appended events in the host's own vocabulary — `compaction/start`, one `compaction/prune`
-per folded node, one replacement `user/message` carrying `surfaceOp`, and `compaction/end` — so a
-host that never loaded this plugin reads the folded session exactly as it was left. `npm run
+A fold is appended events in the host's own vocabulary — `compaction/start`, one `compaction/summary`,
+one replacement `user/message` carrying `surfaceOp`, and `compaction/end` (both bracket records name
+the turn the fold happened in) — so a host that never loaded this plugin reads the folded session
+exactly as it was left. Before 0.2.5 this was a `compaction/prune` with no turn in the bracket, which
+the host's restore validator rejected on restart (issue #1). `npm run
 host-session` asserts that on every log it folds: it re-seeds a fresh host `Session` from the folded
 events, with none of this code involved, and checks that the messages, the tool-call pairing and the
 measured size all match the live session.
+
+**A log that is already broken is not repaired by this.** The host runs
+`assertReleasedV4Relationships` while loading, so an illegal bracket stops the whole session from
+loading — the plugin never gets to run. 0.2.5 stops new logs from being written badly; it cannot
+rescue one written by an older version. Those need a one-off edit on a copy: promote the
+`compaction/prune` to a `compaction/summary` (reusing the digest already stored in the checkpoint) and
+give `compaction/start` and `compaction/end` the same `turn`, then verify with the
+`restoreReleasedV4Artifact` + `assertReleasedV4Relationships` pair used in
+`scripts/dev/host-session-check.mjs` before replacing the original file.
 
 The projection cannot be un-folded in place. `@deepseek-ai/dsh-session` defines `compaction/start`,
 `compaction/prune` and `compaction/end`, and no void event — there is nothing to append that puts
@@ -391,8 +404,8 @@ rejection that forces the ladder, an internal throw that is handed back to the h
 measurement accuracy. `tests/replay-real-log.test.js`
 additionally folds a log captured from a real session and re-checks the host invariants on the
 result; it is skipped unless `DSH_SESSION_LOG` is set. `node scripts/dev/scan-sessions.mjs`
-sweeps every log on this machine and folds each oversized one with zero model calls: 34 of 216
-captured sessions exceed a 196,608-token window and all 34 are rescued, with no failure
+sweeps every log on this machine and folds each oversized one with zero model calls: 45 of 283
+captured sessions exceed a 196,608-token window and all 45 are rescued, with no failure
 (`docs/PLAN.md` §5). The counts here are a snapshot of this machine: they grow as
 sessions are captured, and `scan` and `host-session` recompute them, so the numbers below are
 that same snapshot rather than fixed constants.
@@ -401,10 +414,13 @@ that same snapshot rather than fixed constants.
 the `Session` class out of the installed app bundle and replays captured logs through it, so the
 appends are validated by the host's `validateSessionEventData`, the projection is built by its
 `SurfaceManager`, and the assertions are made on `deriveMessages()` — the exact message array the
-next request would carry. 216 logs seed, 70 fold (twice each, to prove a folded session can be
-folded again), 32 of those folds come from the pre-flight path before any request failed, and the
+next request would carry. 283 logs seed, 105 fold (twice each, to prove a folded session can be
+folded again), 41 of those folds come from the pre-flight path before any request failed, and the
 rest are skipped because the host itself cannot re-seed them in isolation (a foreign plugin's
-message projection, or a pre-v4 log).
+message projection, or a pre-v4 log). After each fold it also hands the whole log to the host's own
+restore validator (`restoreReleasedV4Artifact` + `assertReleasedV4Relationships`): that is where
+issue #1 — a fold that was accepted when written and rejected on restart — was found, and it is the
+only assertion that can catch that class of regression.
 
 `boot-check` goes one level higher: it boots the application. It builds five throwaway profiles, four of
 them from the shipped `headless` template — first a copy of this package whose `apply()` throws, and asserts

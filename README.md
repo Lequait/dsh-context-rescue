@@ -41,7 +41,7 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 # 本地目录
 dsh plugin --profile <profile> add /path/to/dsh-context-rescue
 
-# 从 npm 安装（0.2.4 已发布）
+# 从 npm 安装（0.2.5 已发布）
 dsh plugin --profile <profile> add dsh-context-rescue
 ```
 
@@ -262,11 +262,18 @@ $.retainRatio expected number <= 0.6 but got 5
 dsh plugin --profile <profile> remove dsh-context-rescue   # 然后重启应用
 ```
 
-折叠写入的全部是宿主自己的事件词汇 —— `compaction/start`、每个被折节点一条 `compaction/prune`、
-一条带 `surfaceOp` 的替换 `user/message`、以及 `compaction/end` —— 所以一个**从未装过本插件**的宿主
-读到的就是折叠后的样子。`npm run host-session` 对每一份被折叠的日志都断言过这一点：它用折叠后的
+折叠写入的全部是宿主自己的事件词汇 —— `compaction/start`、一条 `compaction/summary`、一条带
+`surfaceOp` 的替换 `user/message`、以及 `compaction/end`（start 与 end 都带着这次折叠所属的 turn）——
+所以一个**从未装过本插件**的宿主读到的就是折叠后的样子。0.2.5 之前这里写的是 `compaction/prune`、
+而且括号里没有 turn，于是重启重放日志时会被宿主的恢复校验器判成损坏（issue #1）。`npm run host-session` 对每一份被折叠的日志都断言过这一点：它用折叠后的
 事件新建一个全新的宿主 `Session`（不经过本插件任何代码），并核对消息、工具调用配对与计量都和
 当时活着的会话一致。
+**已经写坏的日志不会被这里修好。** 宿主加载一份日志时会先跑 `assertReleasedV4Relationships`，
+一旦括号不合法，整个会话就加载不了 —— 插件的代码根本没机会运行。所以 0.2.5 修的是"以后不再写坏"，
+不是"把坏的救回来"。这类日志只有一条路：在副本上把那个 `compaction/prune` 就地提升成
+`compaction/summary`（内容用检查点里已经写好的摘要），并给 `compaction/start` 与 `compaction/end`
+补上同一个 `turn`；做完再用 `scripts/dev/host-session-check.mjs` 里那套 `restoreReleasedV4Artifact` +
+`assertReleasedV4Relationships` 验一遍，通过后再替换原件。
 
 但投影**不能就地反折叠**：`@deepseek-ai/dsh-session` 只有 `compaction/start`、`compaction/prune`、
 `compaction/end`，没有作废（void）事件 —— 没有可以追加的东西把投影丢掉的历史放回来。事件本身
@@ -336,14 +343,17 @@ npm run publish:npm -- --dry-run
 本来就装得下的投影、同一轮内第二次被拒时强制走阶梯、内部异常交还宿主，以及计量精度。
 `tests/replay-real-log.test.js` 还会把真实会话日志折叠一遍，再复核宿主不变量；未设
 `DSH_SESSION_LOG` 时自动跳过。`node scripts/dev/scan-sessions.mjs` 会把本机所有会话日志扫一遍，
-每个超标会话都在**零模型调用**下救回来：216 个已捕获会话里有 34 个超过 196,608 窗口，34 个全部
+每个超标会话都在**零模型调用**下救回来：283 个已捕获会话里有 45 个超过 196,608 窗口，45 个全部
 救回，0 失败（见 `docs/PLAN.md` §5）。这里的数字是本机的一份快照：会话还在不断产生，
 `scan` 与 `host-session` 会重新计算它们，所以下面引用的也是同一份快照，而不是固定常数。
 
 `host-session` 是保真度最高的一道闸门，也是上面那两个 bug 的被发现处。它把**装好的 app 里那份**
 `Session` 类加载出来回放真实日志：追加由宿主自己的 `validateSessionEventData` 校验，投影由它的
 `SurfaceManager` 构建，断言对象是 `deriveMessages()` —— 也就是下一次请求真正要发的那串消息。
-216 份日志能播种，70 份完成折叠（每份折两次，证明折过的会话还能再折），其中 32 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
+折叠之后它还会把整份日志交给宿主自己的恢复校验器（`restoreReleasedV4Artifact` +
+`assertReleasedV4Relationships`）重放一遍：这正是 issue #1 那个"写时通过、重启才炸"的 bug 的
+被发现处，也是现在唯一能挡住同类回归的断言。
+283 份日志能播种，105 份完成折叠（每份折两次，证明折过的会话还能再折），其中 41 份走的是 pre-flight 路径（请求还没发出就折好），其余是宿主在孤立进程里
 自己也没法重建的（别的插件的事件投影、或 v4 之前的旧格式）。
 
 `boot-check` 再高一层：它真的启动应用。它建五个一次性 profile，其中四个来自出厂 `headless` 模板 ——

@@ -127,7 +127,7 @@ request-error 钩子也必须装上，并在 `internal/service` 时重试注册�
 - 后续进展：awesome 列表的提交是一个数据文件（`docs/awesome-entry.yml`），该列表拒绝创建不满一天的仓库，而本
   仓库创建于 2026-10-30T10:28Z——门槛过后已提交
   [PR #10903](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/10903)（PR check 与提交闸门双绿）。
-  npm 已经发布（0.2.2 手工、0.2.3 与 0.2.4 由 tag 触发 workflow）。另外两份列表当天就收下了条目，都是走 GitHub
+  npm 已经发布（0.2.2 手工、0.2.3 起由 tag 触发 workflow）。另外两份列表当天就收下了条目，都是走 GitHub
   API 而不是克隆：`0xsline/awesome-deepseek-harness`
   （[PR #768](https://github.com/0xsline/awesome-deepseek-harness/pull/768)，中英两份 README）和
   `AdamPlatin123/dsh-plugin-radar`
@@ -199,7 +199,7 @@ request-error 钩子也必须装上，并在 `internal/service` 时重试注册�
 | 崩溃留下的半截事务 | 早先某轮遗留的 `compaction/start` 在规划之前被闭合，于是折到一半死掉的会话又能折了；当前轮遗留的那个不动 | `tests/repair.test.js`（5 个测试） |
 | 预检开销 | pre-step 钩子每轮只测一次，之后只数追加进来的部分，所以长轮次不会每个 step 都给整个投影重新计价；一次大粘贴或外来的折叠会强制真测 | `tests/preflight.test.js`（`countingMeter`：3 个测试），`scripts/dev/rescue-bench.mjs` 打印最大日志的冷/热耗时 |
 | 超大的首条消息 | 第一条用户消息本身就超窗的会话会被折叠，而不是被判"折不动" | `tests/fold.test.js`（2 个测试）、`tests/rescue.test.js`（1 个测试） |
-| 宿主 Session 类 | 折叠被宿主自己的 `Session` 接受：追加通过 `validateSessionEventData`，投影由 `SurfaceManager` 重建，`deriveMessages()` 不留孤儿工具结果，括号闭合 | `scripts/dev/host-session-check.mjs`：222 份日志播种成功，70 份折叠两次，其中 32 份还走预检路径，152 份被宿主自己拒绝播种，0 失败 |
+| 宿主 Session 类 | 折叠被宿主自己的 `Session` 接受：追加通过 `validateSessionEventData`，投影由 `SurfaceManager` 重建，`deriveMessages()` 不留孤儿工具结果，括号闭合 | `scripts/dev/host-session-check.mjs`：283 份日志播种成功，105 份折叠两次，其中 41 份还走预检路径，178 份被宿主自己拒绝播种，0 失败；折叠后、二次折叠后、预检折叠后与最终日志四处都用 `restoreReleasedV4Artifact` + `assertReleasedV4Relationships` 重放 |
 | 真实压缩引擎 | 插件可以借用 `dsh-compaction-basic`（stock profile 放进槽里的那个引擎）而不占槽，也不把"借了但什么都没变"算成救援，借用失败时不把引擎或会话留在坏状态 | `scripts/dev/coexist-check.mjs`（14 条断言，真实引擎，无模型） |
 | 真实事件形状 | surface 归属与 `isSurfaceEligibleType` 一致（`tool/call` 与 `tool/ptc-dispatch` 不是 surface 节点），且事件通过 `snapshotEvents()` 读取，因为宿主 `Session` 没有 `.events` | 两条都由上面的 host-session 闸门钉住 |
 | 会覆写引擎的压缩器 | `dsh-smart-compact@0.5.3` 在 `dsh-compaction-basic` 之上替换了 `compactIfNeeded(agent, trigger, signal)`：非压力触发走基础引擎，待处理的 `new_context` 请求绕过压力带，拒绝时 resolve `null`。因此借用用的是那个确切签名，把 `null` 当作"没缩小"，并且绝不因为引擎的 bug 而锁死 `laneBlocked` | 覆写签名读自发布 tarball；`null` 路径由 `a borrowed engine that changes nothing…` 覆盖，抛错路径由 `a host engine that throws for its own reasons…` 覆盖 |
@@ -251,10 +251,10 @@ request-error 钩子也必须装上，并在 `internal/service` 时重试注册�
 `fitRatio × window` 之下、surface 仍然良构（`corrupt === false`）、两个折叠边界都是配对安全的、事务括号闭合、
 替换体的 `source.kind === 'compact-checkpoint'`。每一份超标日志都被救回，0 失败。空的或本来就装得下的日志被
 跳过而不是判失败——扫描脚本（`node scripts/dev/scan-sessions.mjs`）当前在本机报
-`216 logs · 34 rescued · 182 skipped · 0 failed`。上面那张表是扫描脚本所依据的更早一次结果：它列了 34 份，因为
+`283 logs · 45 rescued · 238 skipped · 0 failed`。上面那张表是扫描脚本所依据的更早一次结果：它列了 34 份，因为
 当时 `tool/call` 与 `tool/ptc-dispatch` 还被算作 surface 节点，所以有三份"看起来超标"的其实早就在窗口内；
 surface 精确之后降到 31 份，等窗口改为按 session header 里点名的 provider 解析后又升到 32 份（其中一份属于窗口
-比 `windowFallback` 更小的模型）。本机后来又抓到一份超标的会话，于是到 33 份——而现在扫描口径报 34 份。
+比 `windowFallback` 更小的模型）。本机后来又抓到一份超标的会话，于是到 33 份；再往后日志继续增长，现在扫描口径报 45 份。
 本节所有数字（含表格行）都是某一次本地日志目录的快照，不是常量。
 
 ## 6. 已知局限

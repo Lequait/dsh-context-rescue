@@ -4,16 +4,16 @@
 
 | 闸门 | 命令 | 结果 |
 |---|---|---|
-| 单测 + 折叠 + 急救 + 事务修复 + 摘录 + 工具 + 命令 + schema + 市场 + 列表规则 + 发行说明 | `npm test` | 148 tests, 145 pass, 3 skipped（仅宿主侧） |
-| 同一套在应用自己的 Node 下跑 | `npm run test:host` | 148 tests, 146 pass, 2 skipped |
+| 单测 + 折叠 + 急救 + 事务修复 + 摘录 + 工具 + 命令 + schema + 市场 + 列表规则 + 发行说明 | `npm test` | 150 tests, 147 pass, 3 skipped（仅宿主侧） |
+| 同一套在应用自己的 Node 下跑 | `npm run test:host` | 150 tests, 148 pass, 2 skipped |
 | `index.js` + `lib/` 的 JSDoc 类型契约 | `npm run typecheck` | 14 个文件 0 error |
 | 四种失效场景 | `npm run simulate` | 全过 |
 | 在已安装宿主的 cordis 4 里挂载 | `npm run mount-check` | 26 条断言通过 |
 | 打包 → 安装 → 宿主 bundle 解析 | `npm run install-smoke` | 16 条断言通过（tarball 内容、安装后的 manifest、宿主加载器、兼容性、导入入口、裸模块名解析） |
 | 对着一个一次性远端跑发布流程 | `npm run publish:rehearse` | 18 条断言通过（首次推送把 `master` 改名为 `main`；已经发布 `master` 的仓库保留它；被宿主接受的索引条目、钉住的 commit、安装 spec） |
-| 扫描本机抓到的一切会话日志 | `npm run scan` | 216 logs, 34 oversized, 34 rescued, 182 skipped, 0 failed |
+| 扫描本机抓到的一切会话日志 | `npm run scan` | 283 logs, 45 oversized, 45 rescued, 238 skipped, 0 failed |
 | 真实应用启动并挂载 bundle | `npm run boot-check` | 33 条断言：植入的 throw 以插件条目出现，真包启动则无此字样，且在 `billion-context`（车道归属者）与 `dsh-smart-compact`（引擎覆写者）旁边同样能挂，还能组合进桌面应用实际运行的 `web` 形状（与渲染命令面的是同一棵树），最后把这个宿主真的启动起来：打印 URL、发放鉴权 cookie、把 UI 文档服务出来 |
-| 宿主自己的 `Session` 类（来自应用 bundle） | `npm run host-session` | 222 份日志播种成功，70 份被折叠（其中 32 份走预检路径），152 份宿主自己拒绝播种，0 失败 |
+| 宿主自己的 `Session` 类（来自应用 bundle） | `npm run host-session` | 283 份日志播种成功，105 份被折叠（其中 41 份走预检路径），178 份宿主自己拒绝播种，0 失败；每份折叠过的日志都由宿主自己的恢复校验器重放 |
 | 一次救援与一次预检的代价 | `node scripts/dev/rescue-bench.mjs` | 在最大的 19 份日志上：救援中位数 1.1 s、p95 7.9 s（大部分是读日志）；预检冷 16 ms、热 0 ms——同一轮里的第二次检查不重新测量 |
 | 槽里的真实宿主压缩引擎 | `npm run coexist` | 14 条断言：`compaction-basic` 仍占着槽，无模型时借用会失败，零模型的折叠完成，事务闭合 |
 | 按用户的方式安装 | `npm run e2e-install` | 10 条断言：`dsh plugin --profile … add <tarball>` 建出 profile、打开 bundle，宿主加载器能从里面解析出 patch；完成后删掉 profile |
@@ -25,7 +25,7 @@
 
 剩下的事情都需要一个已认证的远端：上面这些没有一条能自己创建或写入一个托管仓库。
 
-由日志得来的数字（`216 logs`、`34 rescued`、`70 folds`、`152 skipped`）和下面的 bench 耗时是这台开发机的
+由日志得来的数字（`283 logs`、`45 rescued`、`105 folds`、`172 skipped`）和下面的 bench 耗时是这台开发机的
 快照：会话一多它们就变，`scan`、`host-session`、`rescue-bench` 会重新算。
 
 那张表里有四行需要联网：`e2e-install -- --git`、`e2e-install -- --npm`、`market-install`、`publish:rehearse`
@@ -196,7 +196,7 @@ open 的 fork 被 merge 后删掉它们。计划文件留在 `market/listings/` 
 
 ## 4. npm
 
-**已完成：`dsh-context-rescue@0.2.2` 于 2026-10-31 手工发到 npm，`0.2.3` 与 `0.2.4` 由 tag 发出**——
+**已完成：`dsh-context-rescue@0.2.2` 于 2026-10-31 手工发到 npm，`0.2.3`、`0.2.4` 与 `0.2.5` 由 tag 发出**——
 `git push origin v0.2.3` 触发了 `release.yml`，它通过 `NPM_TOKEN` secret 发布并把 `latest` 留在这个版本上；
 `npm run e2e-install -- --npm` 随后把那个确切版本装进一次性 profile。发布不再需要一个坐在终端前的人。
 `NPM_TOKEN` 仓库 secret 已设，所以以后任何 `git tag v*` 都会通过 release workflow 自动发布。
@@ -220,7 +220,7 @@ npm run publish:npm                # 发布，然后打印安装行
 不一致的 tag，然后带 provenance 发布：
 
 ```bash
-git tag v0.2.4 && git push origin v0.2.4   # NPM_TOKEN 已设；workflow 负责发布
+git tag v0.2.5 && git push origin v0.2.5   # NPM_TOKEN 已设；workflow 负责发布
 ```
 
 同一个 workflow 还负责建 GitHub release 页，正文取 `CHANGELOG.md` 里该版本的那一段

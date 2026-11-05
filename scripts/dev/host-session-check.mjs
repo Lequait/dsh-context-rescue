@@ -80,8 +80,62 @@ function retainOptions(windowTokens, config) {
   );
 }
 
-async function checkOne(Session, SessionId, logPath, config) {
-  const { events } = loadSessionLog(logPath);
+/**
+ * Load the host's own restore validator out of the app bundle.
+ *
+ * This is the half of the host that the append path does not run: `append`
+ * only checks one event's shape, while startup replays the whole artifact and
+ * enforces the relationships between events. A fold that the live session
+ * happily accepts can still make the log unopenable, so every fold this gate
+ * writes is replayed through here.
+ */
+async function loadHostFormat() {
+  const asar = dshAsarCandidates().find((candidate) => candidate !== '');
+  if (asar === undefined) throw new Error('no DSH app.asar found; set DSH_ASAR');
+  const href = pathToFileURL(`${asar}/node_modules/@deepseek-ai/dsh-session-format-v3-to-v4/lib/index.js`).href;
+  const mod = await import(href);
+  assert.equal(typeof mod.restoreReleasedV4Artifact, 'function', 'host restore validator missing');
+  assert.equal(typeof mod.assertReleasedV4Relationships, 'function', 'host relationship validator missing');
+  return mod;
+}
+
+/**
+ * Replay the log the way startup does, and fail the gate if the host refuses it.
+ * @param {any} format the host's v3-to-v4 module
+ * @param {any} known the host's KNOWN_SESSION_EVENT_TYPES
+ * @param {any} header the header the log was written with
+ * @param {any[]} events the whole log
+ * @param {string} label what was just written
+ */
+/**
+ * The inherited-event cut the host expects for this log.
+ *
+ * A seeded session's header must agree with the last inherited `session/end-seed`
+ * marker, and the log record does not carry the count, so it is read back from
+ * the events themselves.
+ */
+function inheritedEventCountOf(header, events) {
+  if (header?.isSeeded !== true) return 0;
+  let marker = 0;
+  for (const [index, event] of events.entries()) {
+    if (event?.type === 'session/end-seed' && event?.data?.inherited === true) marker = index;
+  }
+  return marker;
+}
+
+function assertHostRestores(format, known, header, events, label) {
+  const artifact = { header, inheritedEventCount: inheritedEventCountOf(header, events), events };
+  try {
+    format.restoreReleasedV4Artifact(artifact, known);
+    format.assertReleasedV4Relationships(artifact, known);
+  } catch (error) {
+    throw new Error(`${label}: the host cannot restore this log: ${error?.message ?? error}`);
+  }
+}
+
+async function checkOne(Session, SessionId, logPath, config, format, known) {
+  const { header: rawHeader, events } = loadSessionLog(logPath);
+  const { type: _recordType, ...header } = rawHeader;
   const expected = reconstructSurface(events);
   const session = seedHostSession(Session, SessionId, events, 'host-check');
 
@@ -128,6 +182,7 @@ async function checkOne(Session, SessionId, logPath, config) {
     kind: 'prune',
   });
   assert.ok(written !== undefined, 'fold wrote nothing');
+  assertHostRestores(format, known, header, eventsOf(session), 'after the first fold');
 
   const afterNodes = session.surface.nodes.length;
   assert.equal(afterNodes, hostNodes - plan.shadowedSeqs.length + 1, 'host surface did not shrink by shadowed-1');
@@ -211,6 +266,7 @@ async function checkOne(Session, SessionId, logPath, config) {
     assert.equal(orphanToolResults(twice), 0, 'second fold left a tool result without a call');
     assert.ok(twice.length > 0, 'second fold emptied the host history');
     assert.ok(measure(ctx, session).totalTokens < after.totalTokens, 'second fold did not shrink the projection');
+    assertHostRestores(format, known, header, eventsOf(session), 'after the second fold');
   }
 
   // The pre-step path, end to end, on a real host Session: nothing has failed
@@ -227,6 +283,7 @@ async function checkOne(Session, SessionId, logPath, config) {
     assert.ok(measure(ctx, preSession).totalTokens < preBefore, 'pre-flight did not shrink the projection');
     assert.equal(orphanToolResults(preSession.deriveMessages()), 0, 'pre-flight left a tool result without a call');
     assert.equal(eventsOf(preSession).at(-1).type, 'compaction/end', 'pre-flight left the bracket open');
+    assertHostRestores(format, known, header, eventsOf(preSession), 'after the pre-flight fold');
   } else {
     assert.equal(report.action, 'pass', `pre-flight rewrote a projection that fits (${preBefore} tokens)`);
   }
@@ -251,6 +308,7 @@ async function checkOne(Session, SessionId, logPath, config) {
 
   const last = eventsOf(session).at(-1);
   assert.equal(last.type, 'compaction/end', `host log does not end with compaction/end (got ${last.type})`);
+  assertHostRestores(format, known, header, eventsOf(session), 'the finished log');
 
   return {
     logPath,
@@ -264,7 +322,8 @@ async function checkOne(Session, SessionId, logPath, config) {
 }
 
 async function main() {
-  const { Session, SessionId } = await loadHostSession();
+  const { Session, SessionId, KNOWN_SESSION_EVENT_TYPES } = await loadHostSession();
+  const format = await loadHostFormat();
   const config = mergeConfig(DEFAULTS, {});
   const directory = expandHome(process.env.DSH_SESSIONS_DIR ?? '~/.dsh/sessions');
   const logs = process.env.DSH_SESSION_LOG === undefined ? allLogsUnder(directory) : [expandHome(process.env.DSH_SESSION_LOG)];
@@ -273,7 +332,7 @@ async function main() {
   const results = [];
   for (const logPath of logs) {
     try {
-      results.push(await checkOne(Session, SessionId, logPath, config));
+      results.push(await checkOne(Session, SessionId, logPath, config, format, KNOWN_SESSION_EVENT_TYPES));
     } catch (error) {
       results.push({ logPath, error: error?.message ?? String(error) });
     }

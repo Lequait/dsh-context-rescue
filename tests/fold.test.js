@@ -99,8 +99,21 @@ test('applyFold rewrites the surface and brackets the transaction', () => {
   });
 
   const types = session.events.map((event) => event.type);
-  assert.deepEqual(types.slice(-4), ['compaction/start', 'compaction/prune', 'user/message', 'compaction/end']);
+  assert.deepEqual(types.slice(-4), ['compaction/start', 'compaction/summary', 'user/message', 'compaction/end']);
   assert.equal(hasOpenCompactionTransaction(session.events), false);
+
+  // The host's restore validator requires exactly one summary in every bracket
+  // it accepts, and requires the bracket records to name the open turn.
+  const summary = session.events.at(-3);
+  assert.equal(summary.type, 'compaction/summary');
+  assert.equal(summary.data.compactionId, written.compactionId);
+  assert.deepEqual(summary.data.summary, [{ type: 'text', text: '## 摘要\n- 关键事实' }]);
+  assert.deepEqual(summary.data.shadowedSeqs, plan.shadowedSeqs);
+  assert.equal(summary.data.shadowedTokenCount, plan.shadowedTokenCount);
+  assert.equal(typeof summary.data.provider, 'string');
+  assert.equal(typeof summary.data.model, 'string');
+  assert.equal(session.events.at(-4).data.turn, 3, 'the start names the turn');
+  assert.equal(session.events.at(-1).data.turn, 3, 'the end names the same turn');
 
   const replacement = session.eventAt(written.replacementSeq);
   assert.equal(replacement.options.surfaceOp.op, 'replace');

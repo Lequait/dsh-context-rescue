@@ -3,17 +3,24 @@
 > 从 0.2.5 起，本文件与 GitHub Release 说明用中文写；0.2.4 及更早保留英文原文。
 > 发行页由 `release.yml` 从本文件对应版本段生成，所以这里写什么，Release 页就显示什么。
 
-## Unreleased
+## 0.2.5 — 2026-11-05
 
 ### 变更
 
 - **落地页改成中文。** `README.md` 现在是中文文档，英文版移到 `README.en.md`，两页顶部都有语言切换。包描述、仓库描述以及接下来的发行说明也一并以中文为主，让访客打开页面读到的就是它本来的写法，而不是另一份的译文。插件本身没有任何变化：代码、schema、命令、每一道闸门都没动。`package.json` 的 `files` 跟随改名，发出去的 tarball 仍然同时带两种语言。
 - **工程笔记也改成中文。** `docs/PLAN.md`（工作计划与验证矩阵）与 `docs/PUBLISH.md`（发布与列表投稿手册）整篇翻成中文，命令、路径、闸门名、断言条数与所有数字保持原样，`docs/FEASIBILITY.md` 本来就是中文。顺带把两处已经过时的事实更新成现状：阶段 G 的"npm 还没发布、列表还在等年龄门槛"改成已发布 0.2.2–0.2.4 与 PR #10903，`host-session` 的日志数改成 222。
-- **发行页以后由工作流自己建。** 之前 `release.yml` 只发 npm、不建 GitHub Release，于是 `v0.2.4` 有 tag 却没有页面（0.2.0–0.2.3 都是手工建的）。现在 `permissions` 给了 `contents: write`，末尾新增一步 `Create the GitHub release`：已存在就跳过，否则用 `scripts/dev/release-notes.mjs <version>` 从 `CHANGELOG.md` 取该版本段作为正文，`gh release create` 建页。取段落这件事有 6 个单测钉着（含 `v` 前缀、`. `按字面匹配、段落缺失时给指针而不是编造）。
+- **发行页以后由工作流自己建。** 之前 `release.yml` 只发 npm、不建 GitHub Release，于是 `v0.2.4` 有 tag 却没有页面（0.2.0–0.2.3 都是手工建的）。现在 `permissions` 给了 `contents: write`，末尾新增一步 `Create the GitHub release`：已存在就跳过，否则用 `scripts/dev/release-notes.mjs <version>` 从 `CHANGELOG.md` 取该版本段作为正文，`gh release create` 建页。取段落这件事有 6 个单测钉着（含 `v` 前缀、`.` 按字面匹配、段落缺失时给指针而不是编造）。
+- **网络闸门在网络断掉时，以前会报红，而不是说明原因。** `market-install` 与 `e2e-install -- --git` 要连 `raw.githubusercontent.com` 和 `github.com`；连接死掉时（超时、`ECONNRESET`、路由被墙）闸门会抛 undici 的堆栈并记一行红，而这跟插件没有任何关系。现在它们会把请求重试三次（间隔渐宽），仍然连不上就打印 `SKIP` 与失败那一行并退 0；而主机应答了却给出错误制品，照旧判失败——因为分类只看连接层输出。`npm run verify:network` 把这些行显示为 `skip`，汇总里单独计数，不再算成通过。两个闸门脚本也不再在"安装压根没发生"时去读一个不存在的 manifest。
 
 ### 修复
 
-- **网络闸门在网络断掉时，以前会报红，而不是说明原因。** `market-install` 与 `e2e-install -- --git` 要连 `raw.githubusercontent.com` 和 `github.com`；连接死掉时（超时、`ECONNRESET`、路由被墙）闸门会抛 undici 的堆栈并记一行红，而这跟插件没有任何关系。现在它们会把请求重试三次（间隔渐宽），仍然连不上就打印 `SKIP` 与失败那一行并退 0；而主机应答了却给出错误制品，照旧判失败——因为分类只看连接层输出。`npm run verify:network` 把这些行显示为 `skip`，汇总里单独计数，不再算成通过。两个闸门脚本也不再在"安装压根没发生"时去读一个不存在的 manifest。
+- **一次成功的折叠，重启后会被宿主判成损坏日志。** 这是 issue #1（@Body0-1 报告，14 份会话里 3 份中招，其中一份 7,000+ 事件）。`applyFold()` 在零模型路径上写的是 `compaction/start → compaction/prune → 检查点 → compaction/end`，而宿主的 v4 恢复校验器（`assertReleasedV4Relationships`）要求每个不带 `error` 的 `compaction/end` 括号内**恰好有一个 `compaction/summary`**；`compaction/prune` 是宿主自己 tool-result pruner 用的独立事件，不算 summary。写入时的校验器只是恢复校验器的子集，所以当时不报错，直到重启重放日志才抛 `SessionFormatError: successful compaction/end requires one summary`。现在**每一次折叠都写 `compaction/summary`**：`summary` 是 `ContentBlock[]`（机械摘要文本包成 `[{type:'text',text}]`），并带上与检查点相同的 `shadowedRange`/`shadowedSeqs`/`shadowedTokenCount` 与 `provider`/`model`。
+- **括号记录缺 turn，工具触发的折叠必然非法。** `applyFold()` 只在调用方传了 `plan.turn` 时才写 turn，而 `context_rescue_fold` 这类工具调用没有自己的 turn，于是 `compaction/start` 与 `compaction/end` 的 `turn` 是 `undefined`，加载器以 `compaction turn must be a non-negative safe integer` 拒绝。现在新增 `owningTurn(session, declared)`：调用方给了就用它，否则从日志末尾回溯最近的 `turn/start` 取所属 turn（遇到 `turn/end` 则为 `null`），start 与 end 都写同一个值。
+- **`repairStaleTransactions()` 可能把可接受的日志推成非法。** 它以前用**当前** turn 去闭合悬挂的 `compaction/start`；若那个 start 来自更早的 turn，加载器会以 `compaction/end changes its owner turn` 拒绝，等于既救不了旧日志、又可能弄坏新日志。现在只在 `start.turn === openTurn`（日志仍停在同一 turn）时才补一个带 `error` 的 `compaction/end`，其余情况**只报告不写**，日志里会说明"宿主会拒绝任何闭合事件，因此只报告"。
+
+### 闸门
+
+- **`host-session` 现在用宿主自己的恢复校验器重放每一份折叠过的日志。** 之前它只断言"折叠后投影能派生、配对平衡、token 变小"，这些在内存里都成立，所以漏掉了这个 bug。现在每份日志在第一次折叠后、第二次折叠后、pre-flight 折叠后、以及最终日志四处都跑 `restoreReleasedV4Artifact` + `assertReleasedV4Relationships`，任何"写时通过、重启才炸"的形状都会当场变红。实测 **283 份日志 · 105 份折叠 · 41 次 pre-flight 折叠 · 178 份宿主自己无法重建 · 0 失败**。
 
 ## 0.2.4 — 2026-10-31
 
