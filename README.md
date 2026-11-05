@@ -169,9 +169,11 @@ dsh plugin --profile <profile> add git+https://github.com/Lequait/dsh-context-re
 
 | 工具 | 用途 |
 |---|---|
-| `context_rescue` | `action: "status"` 报告占用、能力与上次急救；`action: "rescue"` 立刻走一遍阶梯、不等失败 |
+| `context_rescue` | `action: "status"` 报告占用、能力与上次急救；`action: "rescue"` 立刻走一遍阶梯、不等失败——**即使投影目前还装得下也会折**，因为这是一次显式请求 |
 | `context_rescue_estimate` | 分类一段贴进来的报错文本（可选参数 `text`），给出从中提取的尺寸，外加本会话的占用情况 |
 | `context_rescue_fold` | 立刻折叠最旧的一段历史（没有参数，与 `/rescue` 走同一个机械折叠），并报告 token 变化 |
+
+三个工具的结果在返回前都过一遍 lossless 化：宿主要求工具输出是 lossless JSON，一个 `undefined` 字段就会让整条结果被丢弃（issue #2）。
 
 工具不抛异常，统一返回带 `ok`、`reason` 和计数的报告对象。
 
@@ -298,6 +300,17 @@ node scripts/repair-log.mjs <session.v4.jsonl.zstd> --in-place --yes   # 先备�
 ```
 
 装成包之后也可以直接 `npx dsh-context-rescue-repair --scan`。
+
+它需要宿主的 Node 才能读 `app.asar`，所以正常跑法是经宿主自己的运行时；如果你的构建把宿主包放在别处
+（例如 `DeepSeek Harness` 把 `node_modules` 解包在 `resources/app/dsh`），用 `--dsh-root` 指定：
+
+```bash
+node scripts/repair-log.mjs --scan --dsh-root "…/resources/app/dsh"
+```
+
+目录与 `app.asar` 都接受，回退顺序是 `DSH_HOST_ROOT` → `DSH_ASAR` → `DSH_APP_ASAR` → 默认安装位置。
+一个都找不到时，它会把**试过的每个候选**逐行打印出来，而不是丢一个指向不存在路径的
+`ERR_MODULE_NOT_FOUND`。
 
 它只做三件有据可依的事：把括号里的 `compaction/prune` 就地提升成 `compaction/summary`（摘要内容取
 同一个括号里检查点已经写好的文本）、给 `compaction/start` 与 `compaction/end` 补上当时开着的 `turn`、

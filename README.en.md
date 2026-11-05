@@ -214,9 +214,12 @@ their shape and their pointers.
 
 | Tool | Purpose |
 |---|---|
-| `context_rescue` | `action: "status"` reports occupancy, capabilities and the last rescue; `action: "rescue"` runs the ladder now and folds without waiting for a failure |
+| `context_rescue` | `action: "status"` reports occupancy, capabilities and the last rescue; `action: "rescue"` runs the ladder now and folds without waiting for a failure — **even when the projection currently fits**, because that is an explicit request |
 | `context_rescue_estimate` | classify a pasted error text (optional `text`) and show the sizes it extracts, plus this session's occupancy |
 | `context_rescue_fold` | fold the oldest history span right now — no parameters, the same mechanical fold `/rescue` runs — and report the token delta |
+
+Every tool result is made lossless before it is returned: the host requires lossless JSON, and a
+single `undefined` field is enough to lose the whole result (issue #2).
 
 Tools never throw; they return a report object with `ok`, `reason` and counters.
 
@@ -362,6 +365,18 @@ node scripts/repair-log.mjs <session.v4.jsonl.zstd> --in-place --yes   # back up
 ```
 
 Once installed as a package, `npx dsh-context-rescue-repair --scan` does the same thing.
+
+It needs the host's own Node to read inside an `app.asar`. If your build keeps the host packages
+somewhere else (for example `DeepSeek Harness` unpacks `node_modules` under `resources/app/dsh`),
+point at it instead — a directory and an `app.asar` are both accepted:
+
+```bash
+node scripts/repair-log.mjs --scan --dsh-root "…/resources/app/dsh"
+```
+
+The fallback order is `DSH_HOST_ROOT` → `DSH_ASAR` → `DSH_APP_ASAR` → the usual install
+locations. When none of them matches, it prints every candidate it tried instead of throwing an
+`ERR_MODULE_NOT_FOUND` for a path that never existed on that machine.
 
 It does three things, each with a reason: promote the bracket's `compaction/prune` to a
 `compaction/summary` (reusing the digest the checkpoint in that bracket already holds), give

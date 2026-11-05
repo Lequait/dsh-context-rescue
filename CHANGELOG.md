@@ -3,6 +3,22 @@
 > 从 0.2.5 起，本文件与 GitHub Release 说明用中文写；0.2.4 及更早保留英文原文。
 > 发行页由 `release.yml` 从本文件对应版本段生成，所以这里写什么，Release 页就显示什么。
 
+## 0.2.7 — 2026-11-05
+
+### 修复
+
+- **只读工具的结果被宿主整条丢掉（issue #2）。** `context_rescue`（`action=status`）与 `context_rescue_estimate` 返回的窗口描述里，`declared`/`observed`/`model`/`provider` 在没有模型信息、也没有失败文本时会留成 `undefined`；宿主要求工具输出是 lossless JSON，**一个 `undefined` 字段就足以让整条结果被丢弃**，模型看到的是 `tool "context_rescue" returned invalid output: value is not lossless JSON`。现在窗口描述里的可选字段显式写 `null`，并且在工具边界统一用新增的 `toLossless()` 清洗每一个结果：`undefined` 消失、非有限数变 `null`、`bigint` 变十进制字符串、循环引用变成 `'[circular]'`。三个工具共用这一道边界，以后新增字段也不会再犯同样的错。
+- **一次成功的折叠反而带上了 `skipped: undefined`。** `mechanicalFold()` 成功时把 `skipped` 显式置成 `undefined`，`context_rescue_fold` 原样转出去，于是"折叠成功"这条恰恰是被丢掉的那条。现在只有真有原因时才写 `skipped`（`replacement was not smaller…` 或 `folded, but the projection is still over the window`）。
+- **`context_rescue` 的 `action=rescue` 不理会显式的 `force`。** 投影还在窗口内时它会回答 `measured projection already fits the window; retrying unchanged`，于是明说要折叠也叫不动它，只有 `context_rescue_fold` 能走到。现在 `force` 覆盖这条捷径；自动路径（请求被拒后的重试）仍然不会为了一个本来就装得下的投影去花上下文改写历史。
+
+### 变更
+
+- **`repair-log` 能找到不是 "DSH NEXT" 的安装。** @Body0-1 的机器上宿主包是**解包**的（`resources/app/dsh/node_modules/…`），旧版写死 `DSH NEXT.exe` + `resources/app.asar`，于是报一个指向根本不存在路径的 `ERR_MODULE_NOT_FOUND`。现在候选里包含 `DSH NEXT` / `DeepSeek Harness` / `DSH` 三个可执行文件名与 `resources/app.asar`、`resources/app/dsh`、`resources/app` 三种布局，**目录根与 `app.asar` 都接受**；新增 `--dsh-root <path>`，回退顺序 `DSH_HOST_ROOT` → `DSH_ASAR` → `DSH_APP_ASAR` → 默认安装位置。找不到时把**试过的每个候选**逐行打印，并说明该用哪个环境变量或参数。
+
+### 闸门
+
+- **单测 166 条（163 通过、3 条只在宿主 Node 下跑）。** 新增 `tests/lossless.test.js`：`toLossless` 的强制转换（`undefined`/`NaN`/`bigint`/函数/循环）、没有窗口信息时 `status` 与 `estimate` 仍然 lossless、成功折叠不带 `skipped`、`rescue` 的成功与"无事可做"两条路径都 lossless。新增 `tests/host-paths.test.js`：目录根被接受、没有宿主包的根会被跳过而不是被信任、找不到时把每个候选都列出来、候选同时覆盖打包与解包两种布局。
+
 ## 0.2.6 — 2026-11-05
 
 ### 新增

@@ -31,7 +31,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { loadSessionLog, supportsZstd } from './session-log.mjs';
-import { dshAsarCandidates } from './host-paths.mjs';
+import { resolveHostRoot } from './host-paths.mjs';
 import { planLogRepair } from '../lib/repair-log.js';
 
 const USAGE = `usage: repair-log <session.v4.jsonl.zstd> [--write] [--out <path>] [--in-place --yes]
@@ -42,6 +42,11 @@ const USAGE = `usage: repair-log <session.v4.jsonl.zstd> [--write] [--out <path>
   --out <path>     write it to an exact path instead
   --in-place       replace the original; needs --yes and leaves a backup
   --scan [dir]     ask the host about every log under dir (default ~/.dsh/sessions)
+  --dsh-root <p>   where DeepSeek Harness is installed: an app.asar file or a
+                   directory holding node_modules/@deepseek-ai/*, e.g.
+                   resources/app.asar or resources/app/dsh
+                   (falls back to DSH_HOST_ROOT, DSH_ASAR, DSH_APP_ASAR, then
+                   the usual install locations)
 `;
 
 /** @param {string} message */
@@ -52,7 +57,7 @@ function fail(message) {
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
-  /** @type {{file?: string, write: boolean, inPlace: boolean, yes: boolean, out?: string, scan: boolean, help: boolean}} */
+  /** @type {{file?: string, write: boolean, inPlace: boolean, yes: boolean, out?: string, scan: boolean, help: boolean, root?: string}} */
   const args = { write: false, inPlace: false, yes: false, scan: false, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -61,7 +66,12 @@ function parseArgs(argv) {
     else if (arg === '--in-place') args.inPlace = true;
     else if (arg === '--yes' || arg === '-y') args.yes = true;
     else if (arg === '--scan') args.scan = true;
-    else if (arg === '--out') {
+    else if (arg === '--dsh-root') {
+      const value = argv[index + 1];
+      if (value === undefined) fail('--dsh-root needs a path');
+      args.root = value;
+      index += 1;
+    } else if (arg === '--out') {
       const value = argv[index + 1];
       if (value === undefined) fail('--out needs a path');
       args.out = value;
@@ -126,15 +136,15 @@ function inheritedEventCountOf(header, events) {
   return marker;
 }
 
-/** Load the host's own restore validator out of the installed app bundle. */
-async function loadHostFormat() {
-  const asar = dshAsarCandidates().find((candidate) => candidate !== '');
-  if (asar === undefined) {
-    throw new Error('no DSH app.asar found; set DSH_ASAR, or run this through scripts/run-host-node.mjs');
-  }
-  const base = `${asar}/node_modules/@deepseek-ai/dsh-session-format-v3-to-v4/lib/index.js`;
+/**
+ * Load the host's own restore validator out of an installed app bundle.
+ * @param {string} [explicitRoot] a `--dsh-root` given on the command line
+ */
+async function loadHostFormat(explicitRoot) {
+  const resolved = resolveHostRoot({ explicit: explicitRoot });
+  const base = `${resolved.root}/node_modules/@deepseek-ai/dsh-session-format-v3-to-v4/lib/index.js`;
   const format = await import(pathToFileURL(base).href);
-  const session = await import(pathToFileURL(`${asar}/node_modules/@deepseek-ai/dsh-session/lib/index.js`).href);
+  const session = await import(pathToFileURL(`${resolved.root}/node_modules/@deepseek-ai/dsh-session/lib/index.js`).href);
   if (typeof format.restoreReleasedV4Artifact !== 'function' || typeof format.assertReleasedV4Relationships !== 'function') {
     throw new Error('the installed app has no v4 restore validator; this log cannot be checked here');
   }
@@ -159,8 +169,8 @@ function describe(file) {
  * ones this tool can fix. Read-only: it never writes, renames or deletes.
  * @param {string} directory
  */
-async function scan(directory) {
-  const host = await loadHostFormat();
+async function scan(directory, root) {
+  const host = await loadHostFormat(root);
   const logs = findLogs(directory);
   if (logs.length === 0) fail(`no session logs under ${directory}`);
 
@@ -229,7 +239,7 @@ async function main() {
   }
   if (!supportsZstd()) fail('this Node cannot decode zstd; run it through scripts/run-host-node.mjs');
   if (args.scan) {
-    await scan(expandHome(args.file ?? '~/.dsh/sessions'));
+    await scan(expandHome(args.file ?? '~/.dsh/sessions'), args.root);
     return;
   }
   if (args.file === undefined) fail(`no log given\n\n${USAGE}`);
@@ -242,7 +252,7 @@ async function main() {
   process.stdout.write(`repairing ${describe(file)}\n`);
   process.stdout.write(`  ${events.length.toLocaleString('en-US')} events\n`);
 
-  const host = await loadHostFormat();
+  const host = await loadHostFormat(args.root);
 
   let before;
   try {

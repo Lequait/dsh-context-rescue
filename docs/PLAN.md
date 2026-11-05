@@ -204,6 +204,8 @@ request-error 钩子也必须装上，并在 `internal/service` 时重试注册�
 | 真实事件形状 | surface 归属与 `isSurfaceEligibleType` 一致（`tool/call` 与 `tool/ptc-dispatch` 不是 surface 节点），且事件通过 `snapshotEvents()` 读取，因为宿主 `Session` 没有 `.events` | 两条都由上面的 host-session 闸门钉住 |
 | 已经被写坏的日志 | 0.2.0–0.2.4 折叠过的日志重启后会被宿主拒绝加载，插件没有机会运行，所以只能从外面修：把括号里的 `compaction/prune` 提升成 `compaction/summary`、给 start/end 补 turn、补全检查点的 `sourceEventSeqs`；修完必须通过宿主校验器才落盘，`--in-place` 必留备份 | `tests/repair-log.test.js`（8 个测试）、`npm run repair-check`（10 条断言：先造一份宿主拒绝的日志证明复现了 issue #1，再逐步验证演练/拒绝/副本/备份） |
 | 会覆写引擎的压缩器 | `dsh-smart-compact@0.5.3` 在 `dsh-compaction-basic` 之上替换了 `compactIfNeeded(agent, trigger, signal)`：非压力触发走基础引擎，待处理的 `new_context` 请求绕过压力带，拒绝时 resolve `null`。因此借用用的是那个确切签名，把 `null` 当作"没缩小"，并且绝不因为引擎的 bug 而锁死 `laneBlocked` | 覆写签名读自发布 tarball；`null` 路径由 `a borrowed engine that changes nothing…` 覆盖，抛错路径由 `a host engine that throws for its own reasons…` 覆盖 |
+| 工具输出必须是 lossless JSON | 宿主要求工具结果是 lossless JSON，一个 `undefined` 字段就让整条结果被丢弃（issue #2 的 `status`/`estimate` 与成功折叠都栽在这里）。窗口描述的可选字段写 `null`，并且三个工具的所有返回都在边界过一遍 `toLossless()` | `tests/lossless.test.js`（4 个测试：`toLossless` 的强制转换、无窗口信息时 `status`/`estimate` 仍 lossless、成功折叠不带 `skipped`、`rescue` 两条路径） |
+| 宿主发现要认解包布局 | `repair-log` 必须能找到不是 "DSH NEXT" 的安装：目录根与 `app.asar` 都接受，目录名含 `DSH NEXT`/`DeepSeek Harness`/`DSH`，布局含 `resources/app.asar` 与 `resources/app/dsh`；找不到时列出所有试过的候选 | `tests/host-paths.test.js`（4 个测试：目录根被接受、无宿主包的根被跳过、失败时列出候选、候选覆盖两种布局） |
 
 ## 5. 真实日志证据
 

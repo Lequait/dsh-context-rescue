@@ -102,21 +102,28 @@ test('/rescue folds the session and reports a usable success result', async () =
   assert.ok(measure(context, session).totalTokens < before);
 });
 
-test('/rescue on a projection that already fits changes nothing', async () => {
+test('/rescue folds an explicit request even when the projection already fits', async () => {
+  // A projection that fits its window still has foldable history; the automatic
+  // path leaves it alone (that is covered in rescue.test.js), but an explicit
+  // /rescue is a request for space now.
   const session = new FakeSession();
-  seedConversation(session, { turns: 4, chars: 400 });
-  const context = fakeContext({ llm: fakeLlm(60000) });
+  seedConversation(session, { turns: 12, chars: 3000 });
+  const context = fakeContext({ llm: fakeLlm(200000) });
   const commands = fakeCommands();
   context.services.set('commands', commands);
   registerCommands(context, resolveConfig({}));
-  const nodesBefore = session.surface.nodes.length;
+  const before = measure(context, session).totalTokens;
+  assert.ok(before < 200000 * 0.85, `seed must fit the window: ${before}`);
 
   const result = assertCommandResult(await commands.registered.get('rescue').handler({ agent: { session }, rawInput: '', signal: new AbortController().signal }));
 
+  // An explicit /rescue is a request for space now. The "measurement says it
+  // already fits" shortcut belongs to the automatic path, where it avoids
+  // spending context on a rewrite nobody asked for.
   assert.equal(result.kind, 'success');
-  assert.match(result.text, /Nothing to do/);
-  assert.equal(result.sourceEventSeq, undefined);
-  assert.equal(session.surface.nodes.length, nodesBefore, 'a fitting projection must not be rewritten');
+  assert.match(result.text, /Rescued:/);
+  assert.ok(Number.isSafeInteger(result.sourceEventSeq), 'a fold must point the UI at its replacement event');
+  assert.ok(measure(context, session).totalTokens < before, 'an explicit rescue must free space');
 });
 
 test('/rescue status is a read-only report', async () => {
