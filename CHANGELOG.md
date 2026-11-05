@@ -3,6 +3,27 @@
 > 从 0.2.5 起，本文件与 GitHub Release 说明用中文写；0.2.4 及更早保留英文原文。
 > 发行页由 `release.yml` 从本文件对应版本段生成，所以这里写什么，Release 页就显示什么。
 
+## 0.2.8 — 2026-11-05
+
+### 新增
+
+- **单测从 166 条涨到 197 条（194 通过、3 条只在宿主 Node 下跑）。** 这五个文件针对的是"已经出过事的那几类"，不是行覆盖率：
+  - `tests/property.test.js`：固定种子生成 200 组危险 JSON（`undefined`/`NaN`/`bigint`/函数/共享引用/环/`Date`），断言 `toLossless` 是不动点且能过 JSON 往返；再随机生成 300 份带缺陷的压缩括号日志，断言 `planLogRepair` **要么修到满足宿主全部括号规则，要么把问题逐条报出来**，绝不交回一份"另一种坏"的日志。
+  - `tests/tools-sweep.test.js`：三个工具 × 四种窗口解析（正常 / 无窗口 / 垃圾值 / 抛异常）× 四种会话（空 / 小 / 超大 / 单条巨消息）全跑一遍，每个答案都要过 JSON 往返。
+  - `tests/fold-bracket.test.js`：逐字段钉住括号形状（`start(turn) → summary: ContentBlock[] → checkpoint → end(turn)`）、没有打开的 turn 时写 `null`、header 缺 provider/model 时的兜底、以及**折叠中途失败要自己关掉括号并带上 error**。
+  - `tests/wiring.test.js`：`enabled` / `preflight` / `registerTools` / `mode` 每个开关都要真的改变挂载结果；工具注册服务抛异常时 `agent/request-error` 钩子必须还在。
+  - `tests/schema-drift.test.js`：schema 声明的键、`DEFAULTS` 的键、代码里真正读取的键三处必须一致——`debug` 那种"声明了但没人读"的空转选项会被直接点名。
+
+### 修复
+
+- **`toLossless` 把共享引用误判成循环。** 以前用一个全局 `WeakSet` 记录"见过的对象"，同一个对象出现两次（`{ before, after }` 指向同一份测量、共享的 options）第二次就变成 `'[circular]'`，数据静默丢失。现在只记录**当前路径上的祖先**：真正的环仍是 `'[circular]'`，共享引用按 JSON 语义复制两份；`Date` 按 `JSON.stringify` 的语义写成 ISO 字符串，而不是 `{}`。
+- **未知的 `action` 会折叠会话。** `context_rescue` 原来只判断"是不是 `status`"，其余一律走急救路径，于是模型猜一个 `fold-now` 之类不存在的动作就会真的改写历史。现在只有 `rescue` 与它的别名 `fold` 会写，其它一律只读报告。
+- 三个工具在测量失败时改成**返回 `{ok:false, error}`**，而不是把异常抛给宿主（`estimate` 仍会带回分类结果）。
+
+### 闸门
+
+- 单测 197 条（194 通过 / 3 条仅宿主 Node）、`tsc` 0 error；`verify` 3/3、`verify:host` 10/10。
+
 ## 0.2.7 — 2026-11-05
 
 ### 修复

@@ -4,8 +4,8 @@
 
 | 闸门 | 命令 | 结果 |
 |---|---|---|
-| 单测 + 折叠 + 急救 + 事务修复 + 摘录 + 工具 + 命令 + schema + 市场 + 列表规则 + 发行说明 | `npm test` | 166 tests, 163 pass, 3 skipped（仅宿主侧） |
-| 同一套在应用自己的 Node 下跑 | `npm run test:host` | 166 tests, 164 pass, 2 skipped |
+| 单测 + 折叠 + 急救 + 事务修复 + 摘录 + 工具 + 命令 + schema + 市场 + 列表规则 + 发行说明 | `npm test` | 197 tests, 194 pass, 3 skipped（仅宿主侧） |
+| 同一套在应用自己的 Node 下跑 | `npm run test:host` | 197 tests, 195 pass, 2 skipped |
 | `index.js` + `lib/` 的 JSDoc 类型契约 | `npm run typecheck` | 14 个文件 0 error |
 | 四种失效场景 | `npm run simulate` | 全过 |
 | 在已安装宿主的 cordis 4 里挂载 | `npm run mount-check` | 26 条断言通过 |
